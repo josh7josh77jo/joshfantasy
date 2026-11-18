@@ -115,7 +115,7 @@ function stMap(){const ids=myIds(),m={},c={sk:0,g:0,B:0,IR:0};
 ids.forEach(id=>{const s=RS.st[id];if(s){m[id]=s;const p=dPl(id);if(s=='S')p.g?c.g++:c.sk++;else c[s]++}});
 ids.forEach(id=>{if(m[id])return;const p=dPl(id);if(p.g?c.g<1:c.sk<5){p.g?c.g++:c.sk++;m[id]='S'}else if(c.B<2){c.B++;m[id]='B'}else m[id]='U'});return m}
 function roster(){const t=myT();
-const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2><p class='msg' role='status'>${esc(msg)}</p>`;
+const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div class='tools'><input id='tn' maxlength='30' value="${esc(TEAMS[t].n)}" aria-label='Team name'><button data-savename>Save name</button></div><p class='note'>Everyone in the league sees this name.</p>`:''}<p class='msg' role='status'>${esc(msg)}</p>`;
 if(t<0)return head+`<div class='empty'>Log in with an account that has a team to manage a roster. The commissioner assigns teams in the Account tab.</div>`;
 const ids=myIds();
 if(!ids.length)return head+`<div class='empty'>Your roster is empty. Players you draft will show up here.</div>`;
@@ -145,28 +145,29 @@ const DPLAYERS="Robay,MIN,16,30,13;Wapex,CGY,16,19,17;Maspn,CGY,16,28,7;Youppi,B
 const SO={},W={};
 const GOALIES="packrs,CGY,12,110,94,16;Emxtion,TOR,15,149,122,27;PandaMan1010,PHI,13,132,109,23;Bagouu_,NYC,16,175,146,29;bagelglazed,BOS,13,134,104,30;ToastedXD,SFS,16,213,170,43;zazpal,MTL,12,159,119,40;DragonBallZ,CAR,13,135,104,31;Color_Derp,SEA,11,116,86,30;MF_RAYADO,MIN,7,69,54,15;Ra1ded,MIN,4,39,35,4;broudfn,ORL,13,207,163,44;ZombieMagikarp,MIL,15,263,183,80;SpookyMount,MIN,3,35,29,6;CartoonyMan,SEA,5,66,51,15;AarBear_,BOS,3,33,24,9;Nyxes12,CAR,2,27,20,7;_bo0gie,CGY,2,20,16,4;Gilan,ORL,5,56,36,20;DeBrando,PHI,3,36,29,7".split(";").forEach((s,i)=>{const [name,pos,gp,sa,sv,ga]=s.split(",");DPLAYERS.push({id:300+i,name:name+" (G)",pos,g:true,team:`G · ${W[name]?W[name]+' W · ':''}${sv} SV · ${ga} GA${SO[name]?' · '+SO[name]+' SO':''} · ${gp} GP`,pts:+sv-3*ga+2*(W[name]||0)+3*(SO[name]||0)})});
 let DR=[],dq="",dpf="All",rc=false;
-try{const s=JSON.parse(localStorage.getItem("bluelinedraft2"));if(Array.isArray(s))DR=s}catch(e){}
-const saveD=()=>{try{localStorage.setItem("bluelinedraft2",JSON.stringify(DR))}catch(e){}};
+let DSTART=false,DERR=false,DEAD=0,APF=-1;
+const canPick=()=>DSTART&&!DERR&&DR.length<N*ROUNDS&&!!SES&&(ADM||myT()==slot(DR.length));
 const slot=i=>{const r=Math.floor(i/N),k=i%N;return ORD[r%2?N-1-k:k]};
 function draft(){const total=N*ROUNDS,cur=DR.length,done=cur>=total,taken=new Set(DR.map(d=>d.pid));
 const avail=DPLAYERS.filter(p=>!taken.has(p.id)&&(dpf=="All"||(dpf=="Goalies"?p.g:p.pos==dpf))&&p.name.toLowerCase().includes(dq.toLowerCase())).sort((a,b)=>b.pts-a.pts);
-const banner=done?`<div class="clock done"><b>Draft complete</b>All ${total} picks are in. Reset to run it again.</div>`:`<div class="clock" role="status"><b>${esc(TEAMS[slot(cur)].n)} is on the clock</b>Round ${Math.floor(cur/N)+1} of ${ROUNDS} · pick ${cur%N+1} · overall ${cur+1} of ${total}${SET.timer?' · <span id="clk"></span>':''}</div>`;
-const list=avail.length?avail.map(p=>pRow(p,`<button data-pick="${p.id}" ${done?'disabled':''} aria-label="Draft ${esc(p.name)}">Draft</button>`)).join(""):`<div class="empty">No players left that match. Clear the search or pick another position.</div>`;
+const banner=DERR?`<div class="clock"><b>Draft database not set up</b>Run schema_v2.sql in Supabase, then reload.</div>`:!DSTART?`<div class="clock"><b>The draft hasn’t started</b>${ADM?'Press Start draft when everyone is ready.':'The commissioner will start it when everyone is ready.'}</div>`:done?`<div class="clock done"><b>Draft complete</b>All ${total} picks are in.</div>`:`<div class="clock" role="status"><b>${esc(TEAMS[slot(cur)].n)} is on the clock</b>Round ${Math.floor(cur/N)+1} of ${ROUNDS} · pick ${cur%N+1} · overall ${cur+1} of ${total}${SET.timer?' · <span id="clk"></span>':''}</div>`;
+const list=avail.length?avail.map(p=>pRow(p,`<button data-pick="${p.id}" ${canPick()?'':'disabled'} aria-label="Draft ${esc(p.name)}">Draft</button>`)).join(""):`<div class="empty">No players left that match. Clear the search or pick another position.</div>`;
 let cells="";for(let r=0;r<ROUNDS;r++)for(let t=0;t<N;t++){let i=-1;for(let j=r*N;j<r*N+N;j++)if(slot(j)==t)i=j;const d=DR[i],p=d&&DPLAYERS.find(x=>x.id==d.pid);
 cells+=`<div class="cell ${i==cur?'now':''} ${t==myT()&&p?'mine':''}">${p?`${esc(p.name)}<small>${p.pos} · ${esc(p.team)}</small>`:`<span class="no">${i==cur?'On the clock':'Pick '+(i+1)}</span>`}</div>`}
 const heads=TEAMS.slice(0,N).map((t,i)=>`<div class="dh ${i==myT()?'me':''}">${lg(i)}${esc(t.n)}</div>`).join("");
-return `<h2>Snake draft</h2><p class="note">${ROUNDS} rounds, order reversed each round. The last-place team picks first. Anyone can make the pick for the team on the clock. Scoring: skaters get 3 per goal, 2 per assist, 0.25 per shot on goal and 0.02 per touch. Goalies get 2 per win, 1 per save, −3 per goal against and 3 per shutout.</p>${banner}<p class="msg" role="status">${esc(msg)}</p><div class="tools"><button data-auto ${done?'disabled':''}>Auto-pick best available</button><button data-undo ${cur?'':'disabled'}>Undo last pick</button><button data-reset ${cur?'':'disabled'}>${rc?'Confirm reset':'Reset draft'}</button></div><div class="dwrap"><div><div class="tools"><input id="dq" type="search" placeholder="Search players" value="${esc(dq)}" aria-label="Search draft players"><select id="dpf" aria-label="Team">${["All","Goalies",...CODES].map(x=>`<option ${x==dpf?'selected':''}>${x}</option>`).join("")}</select></div>${list}</div><div class="scroll"><div class="dgrid" style="grid-template-columns:repeat(${N},minmax(96px,1fr));min-width:${N*100}px">${heads}${cells}</div></div></div>`}
+return `<h2>Snake draft</h2><p class="note">${ROUNDS} rounds, order reversed each round. The last-place team picks first. Everyone sees the same board. Only the team on the clock can pick, and admins can pick for anyone. ${SES?'':'Log in to take part.'} Scoring: skaters get 3 per goal, 2 per assist, 0.25 per shot on goal and 0.02 per touch. Goalies get 2 per win, 1 per save, −3 per goal against and 3 per shutout.</p>${banner}<p class="msg" role="status">${esc(msg)}</p><div class="tools">${ADM&&!DSTART?'<button data-dstart>Start draft</button>':''}${canPick()?'<button data-auto>Auto-pick best available</button>':''}${ADM&&cur?'<button data-undo>Undo last pick</button>':''}${ADM&&(DSTART||cur)?`<button data-reset>${rc?'Confirm reset':'Reset draft'}</button>`:''}</div><div class="dwrap"><div><div class="tools"><input id="dq" type="search" placeholder="Search players" value="${esc(dq)}" aria-label="Search draft players"><select id="dpf" aria-label="Team">${["All","Goalies",...CODES].map(x=>`<option ${x==dpf?'selected':''}>${x}</option>`).join("")}</select></div>${list}</div><div class="scroll"><div class="dgrid" style="grid-template-columns:repeat(${N},minmax(96px,1fr));min-width:${N*100}px">${heads}${cells}</div></div></div>`}
 const SUPA_URL='https://rtojwnsdodcoyhlnuusy.supabase.co',SUPA_KEY='sb_publishable_U9VWezsVa5BKvYh_iSl3rg_mLDpqrtO';
 let sb=null;try{sb=supabase.createClient(SUPA_URL,SUPA_KEY)}catch(e){}
 const mail=u=>'joshfantasyleague.x7k2q+'+u+'@gmail.com';
 let SES=null,ACCTS=[],ASSIGN={},ADM=false,amsg='';
-const OWN0=TEAMS.map(t=>t.o);
-function owners(){TEAMS.forEach((t,i)=>t.o=OWN0[i]);for(const id in ASSIGN){const a=ACCTS.find(x=>x.id==id);if(a&&TEAMS[ASSIGN[id]])TEAMS[ASSIGN[id]].o=a.username}}
+const OWN0=TEAMS.map(t=>t.o),NAME0=TEAMS.map(t=>t.n);let NAMES={};
+function owners(){TEAMS.forEach((t,i)=>{t.o=OWN0[i];t.n=NAMES[i]||NAME0[i]});for(const id in ASSIGN){const a=ACCTS.find(x=>x.id==id);if(a&&TEAMS[ASSIGN[id]])TEAMS[ASSIGN[id]].o=a.username}}
 const soft=()=>{const el=document.activeElement;if(!(el&&el.closest&&el.closest('#view input')))render()};
 const myT=()=>SES&&ASSIGN[SES.id]!=null?+ASSIGN[SES.id]:-1;
 function who(){$('#setTab').hidden=!ADM;const t=SES&&ASSIGN[SES.id];$('#who').textContent=SES?SES.username+(t!=null&&TEAMS[t]?' · '+TEAMS[t].n:''):'Not signed in'}
 async function loadAll(){if(!sb)return soft();
-try{const [p,s]=await Promise.all([sb.from('profiles').select('*'),sb.from('settings').select('*').eq('id',1).maybeSingle()]);
+try{const [p,s,tn]=await Promise.all([sb.from('profiles').select('*'),sb.from('settings').select('*').eq('id',1).maybeSingle(),sb.from('team_names').select('*')]);
+if(tn&&!tn.error&&tn.data){NAMES={};tn.data.forEach(x=>NAMES[x.idx]=x.name)}
 if(!p.error&&p.data){ACCTS=p.data;ASSIGN={};KICKED=new Set();p.data.forEach(a=>{if(a.team!=null)ASSIGN[a.id]=a.team;if(a.kicked)KICKED.add(a.id)})}
 if(s&&!s.error&&s.data)applySet(s.data);
 const r=await sb.auth.getSession(),ses=r.data&&r.data.session,me=ses&&ACCTS.find(a=>a.id==ses.user.id);
@@ -198,23 +199,21 @@ if(ins.error){await sb.auth.signOut();amsg='Could not create the profile: '+ins.
 await loadAll();amsg='Account created. Ask the commissioner to assign your team.';render()}
 async function assign(id,v){const r=await sb.from('profiles').update({team:v===''?null:+v}).eq('id',id).select();amsg=dbok(r)?'Team saved.':'Could not save. Only the commissioner can assign teams.';await loadAll();render()}
 const adminSection=()=>ADM?adminPanel():'';
-let SET={teams:12,rounds:8,roster:9,timer:0},KICKED=new Set(),DEAD=0;
-try{DEAD=+localStorage.getItem('bluelinedraft2-dl')||0}catch(e){}
+let SET={teams:12,rounds:8,roster:9,timer:0},KICKED=new Set();
 function applySet(d){const c=(v,a,b,f)=>Math.min(b,Math.max(a,v!=null&&Number.isFinite(+v)?+v:f));const old=SET.timer;
 SET={teams:c(d.teams,2,12,12),rounds:c(d.rounds,1,12,8),roster:c(d.roster,2,16,9),timer:[60,1800,3600,86400].includes(d.timer)?d.timer:0};
 SET.rounds=Math.min(SET.rounds,Math.max(1,Math.floor(DPLAYERS.length/SET.teams)));
-N=SET.teams;ROUNDS=SET.rounds;MAX=SET.roster;ORD=[...Array(N).keys()].reverse();if(SET.timer!==old)DEAD=0}
-function resetDL(){DEAD=SET.timer?Date.now()+SET.timer*1000:0;try{localStorage.setItem('bluelinedraft2-dl',DEAD)}catch(e){}}
+N=SET.teams;ROUNDS=SET.rounds;MAX=SET.roster;ORD=[...Array(N).keys()].reverse()}
 const fmt=s=>{s=Math.max(0,Math.ceil(s));const d=Math.floor(s/86400),hr=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+'d ':'')+(hr||d?hr+'h ':'')+(m||hr||d?m+'m ':'')+(s%60)+'s'};
-setInterval(()=>{if(location.hash!='#draft'||!SET.timer||DR.length>=N*ROUNDS)return;if(!DEAD)resetDL();const left=(DEAD-Date.now())/1000;
-if(left<=0){const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b){msg='Time ran out. Auto-picked '+b.name+'.';pickP(b.id)}return}
+setInterval(()=>{if(location.hash!='#draft'||!DSTART||!SET.timer||!DEAD||DR.length>=N*ROUNDS)return;const left=(DEAD-Date.now())/1000;
+if(left<=0){if(SES&&APF!==DR.length){APF=DR.length;const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b)sendPick(b.id,true)}return}
 const k=$('#clk');if(k)k.textContent=fmt(left)+' left'},1000);
 function settings(){if(!ADM)return `<h2>Settings</h2><div class='empty'>Only the commissioner can change league settings.</div>`;
 const rng=(a,b)=>Array.from({length:b-a+1},(_,i)=>[a+i,a+i]);
 const sel=(k,o,cur)=>`<select data-set='${k}'>${o.map(([v,l])=>`<option value='${v}' ${v==cur?'selected':''}>${l}</option>`).join('')}</select>`;
 const me=SES&&SES.id;
 const rows=ACCTS.slice().sort((a,b)=>a.username.localeCompare(b.username)).map(a=>{const k=KICKED.has(a.id);return `<tr><td>${esc(a.username)}${k?' (removed)':''}</td><td>${k?`<button data-restore='${esc(a.id)}'>Restore</button>`:a.id==me?'You':`<button data-kick='${esc(a.id)}'>Kick</button>`}</td></tr>`}).join('');
-return `<h2>League settings</h2><p class='msg' role='status'>${esc(amsg)}</p><div class='form'><label>Teams in league${sel('teams',rng(2,12),SET.teams)}</label><label>Draft rounds${sel('rounds',rng(1,12),SET.rounds)}</label><label>Roster size${sel('roster',rng(2,16),SET.roster)}</label><label>Draft timer per pick${sel('timer',[[0,'No timer'],[60,'60 seconds'],[1800,'30 minutes'],[3600,'1 hour'],[86400,'1 day']],SET.timer)}</label></div><p class='note'>Changes save right away for everyone. Changing teams or rounds mid-draft moves the board, so reset the draft first. When a timer runs out, the best available player is picked, and timers only run while the Draft tab is open.</p><h2 style='margin-top:28px'>Members</h2>${ACCTS.length?`<div class='scroll'><table class='adm'><thead><tr><th>Username</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class='empty'>No accounts yet.</div>`}<p class='note'>Kicked members are signed out, can’t log back in, and lose their team until you restore them.</p>`}
+return `<h2>League settings</h2><p class='msg' role='status'>${esc(amsg)}</p><div class='form'><label>Teams in league${sel('teams',rng(2,12),SET.teams)}</label><label>Draft rounds${sel('rounds',rng(1,12),SET.rounds)}</label><label>Roster size${sel('roster',rng(2,16),SET.roster)}</label><label>Draft timer per pick${sel('timer',[[0,'No timer'],[60,'60 seconds'],[1800,'30 minutes'],[3600,'1 hour'],[86400,'1 day']],SET.timer)}</label></div><p class='note'>Changes save right away for everyone. Changing teams or rounds mid-draft moves the board, so reset the draft first. When a timer runs out, the best available player is picked automatically, as long as someone has the Draft tab open.</p><h2 style='margin-top:28px'>Members</h2>${ACCTS.length?`<div class='scroll'><table class='adm'><thead><tr><th>Username</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class='empty'>No accounts yet.</div>`}<p class='note'>Kicked members are signed out, can’t log back in, and lose their team until you restore them.</p>`}
 async function saveSet(k,v){const r=await sb.from('settings').update({[k]:+v}).eq('id',1).select();amsg=dbok(r)?'Setting saved.':'Could not save. Only the commissioner can change settings.';await loadAll();render()}
 async function kick(id){const r=await sb.from('profiles').update({kicked:true,team:null}).eq('id',id).select();amsg=dbok(r)?'Member removed.':'Could not remove the member.';await loadAll();render()}
 async function restore(id){const r=await sb.from('profiles').update({kicked:false}).eq('id',id).select();amsg=dbok(r)?'Member restored.':'Could not restore the member.';await loadAll();render()}
@@ -227,18 +226,29 @@ const qi=$("#q");if(qi){qi.oninput=e=>{q=e.target.value;const pos=e.target.selec
 const ps=$("#pf");if(ps)ps.onchange=e=>{pf=e.target.value;render()}
 const di=$("#dq");if(di){di.oninput=e=>{dq=e.target.value;const pos=e.target.selectionStart;render();const n=$("#dq");n.focus();n.setSelectionRange(pos,pos)}}
 const dp=$("#dpf");if(dp)dp.onchange=e=>{dpf=e.target.value;render()}}
-function pickP(pid){const p=DPLAYERS.find(x=>x.id==pid);if(!p||DR.length>=N*ROUNDS||DR.some(d=>d.pid==pid))return;msg=TEAMS[slot(DR.length)].n+" drafted "+p.name+".";DR.push({pid});rc=false;resetDL();saveD();render()}
-$("#view").addEventListener("click",e=>{const d=e.target.dataset;
-if(d.pick)pickP(+d.pick);
-if("auto" in d){const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b)pickP(b.id)}
-if("undo" in d&&DR.length){const x=DR.pop(),p=DPLAYERS.find(q=>q.id==x.pid);msg="Pick undone: "+p.name+" is back in the pool.";DEAD=0;rc=false;saveD();render()}
-if("reset" in d){if(rc){DR=[];DEAD=0;RS={added:[],cut:[],st:{}};saveRS();rc=false;msg="Draft reset. Round 1 is ready.";saveD()}else{rc=true;msg="Press again to clear all picks."}render()}
+async function loadDraft(){if(!sb)return;try{const r=await sb.from('draft_state').select('*').eq('id',1).maybeSingle();
+if(r.error){if(!DERR){DERR=true;soft()}return}
+const dd=r.data||{},np=Array.isArray(dd.picks)?dd.picks:[],ns=!!dd.started,nd=+dd.deadline||0;
+const ch=DERR||ns!==DSTART||nd!==DEAD||np.join()!==DR.map(x=>x.pid).join();
+DERR=false;DR=np.map(pid=>({pid}));DSTART=ns;DEAD=nd;if(ch)soft()}catch(e){}}
+async function sendPick(pid,auto){if(!sb)return;const p=DPLAYERS.find(x=>x.id==pid),who0=TEAMS[slot(DR.length)].n;
+const r=await sb.rpc('make_pick',{pid,auto:!!auto});
+msg=r.error?(auto?'':'Could not pick: '+r.error.message):(auto?'Time ran out. ':'')+who0+' drafted '+p.name+'.';await loadDraft();rc=false;render()}
+async function saveName(){const t=myT(),v=($('#tn')&&$('#tn').value||'').trim();if(t<0)return;
+if(!v||v.length>30){msg='Team names need 1 to 30 characters.';return render()}
+const r=await sb.from('team_names').upsert({idx:t,name:v});msg=r.error?'Could not save the team name.':'Team name saved.';await loadAll();render()}
+$("#view").addEventListener("click",async e=>{const d=e.target.dataset;
+if(d.pick)sendPick(+d.pick,false);
+if("auto" in d){const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b)sendPick(b.id,false)}
+if("dstart" in d&&ADM){const r=await sb.from('draft_state').update({started:true,picks:[],deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Draft started.':'Could not start the draft. Only admins can.';await loadDraft();render()}
+if("undo" in d&&ADM&&DR.length){const r=await sb.from('draft_state').update({picks:DR.slice(0,-1).map(x=>x.pid),deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Last pick undone.':'Could not undo.';await loadDraft();render()}
+if("reset" in d&&ADM){if(rc){const r=await sb.from('draft_state').update({started:false,picks:[],deadline:null}).eq('id',1).select();RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=dbok(r)?'Draft reset.':'Could not reset.';await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
 });
 addEventListener("hashchange",()=>{msg="";amsg="";render()});
-$("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.ir)setSt(d.ir,'IR');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa)});
+$("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.ir)setSt(d.ir,'IR');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName()});
 $("#view").addEventListener("change",e=>{const d=e.target.dataset;if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value)});
 render();
-loadAll();setInterval(loadAll,20000);
+loadAll();setInterval(loadAll,20000);loadDraft();setInterval(loadDraft,3000);
 </script>
 </body>
 </html>
