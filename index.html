@@ -158,7 +158,7 @@ const heads=TEAMS.slice(0,N).map((t,i)=>`<div class="dh ${i==myT()?'me':''}">${l
 return `<h2>Snake draft</h2><p class="note">${ROUNDS} rounds, order reversed each round. The last-place team picks first. Anyone can make the pick for the team on the clock. Scoring: skaters get 3 per goal, 2 per assist, 0.25 per shot on goal and 0.02 per touch. Goalies get 2 per win, 1 per save, −3 per goal against and 3 per shutout.</p>${banner}<p class="msg" role="status">${esc(msg)}</p><div class="tools"><button data-auto ${done?'disabled':''}>Auto-pick best available</button><button data-undo ${cur?'':'disabled'}>Undo last pick</button><button data-reset ${cur?'':'disabled'}>${rc?'Confirm reset':'Reset draft'}</button></div><div class="dwrap"><div><div class="tools"><input id="dq" type="search" placeholder="Search players" value="${esc(dq)}" aria-label="Search draft players"><select id="dpf" aria-label="Team">${["All","Goalies",...CODES].map(x=>`<option ${x==dpf?'selected':''}>${x}</option>`).join("")}</select></div>${list}</div><div class="scroll"><div class="dgrid" style="grid-template-columns:repeat(${N},minmax(96px,1fr));min-width:${N*100}px">${heads}${cells}</div></div></div>`}
 const SUPA_URL='https://rtojwnsdodcoyhlnuusy.supabase.co',SUPA_KEY='sb_publishable_U9VWezsVa5BKvYh_iSl3rg_mLDpqrtO';
 let sb=null;try{sb=supabase.createClient(SUPA_URL,SUPA_KEY)}catch(e){}
-const mail=u=>u+'@josh-fantasy.app';
+const mail=u=>'joshfantasyleague.x7k2q+'+u+'@gmail.com';
 let SES=null,ACCTS=[],ASSIGN={},ADM=false,amsg='';
 const OWN0=TEAMS.map(t=>t.o);
 function owners(){TEAMS.forEach((t,i)=>t.o=OWN0[i]);for(const id in ASSIGN){const a=ACCTS.find(x=>x.id==id);if(a&&TEAMS[ASSIGN[id]])TEAMS[ASSIGN[id]].o=a.username}}
