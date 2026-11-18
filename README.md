@@ -24,13 +24,20 @@ Open `index.html` in a browser, or serve the folder:
 
 Shots on goal, touches, wins and shutouts are not in the imported stats yet. Add them in the `XS` (skaters), `W` and `SO` (goalies) objects near the top of the script.
 
-## Important: accounts, admin and settings
+## Accounts, admin and settings (Supabase)
 
-The shared features (account login, team assignment, kicking members, league settings) were built on Claude's artifact database, which only exists when the page is hosted by Claude. On GitHub Pages those features are switched off and the Account tab will say it needs the league database. Draft picks and roster moves are saved in each visitor's own browser.
+Shared accounts, team assignment, kicking members and league settings use a Supabase project. The project URL and publishable key are in `index.html` (`SUPA_URL`, `SUPA_KEY`). The publishable key is safe to expose; the row-level security rules in `schema.sql` decide who can change what.
 
-To get shared accounts and settings on GitHub Pages you would need a backend such as Supabase or Firebase.
+Setup:
+1. Create a Supabase project. Under Authentication, Providers, Email, turn off "Confirm email".
+2. Run `schema.sql` in the SQL Editor.
+3. Sign up on the site, then make yourself admin in the SQL Editor:
 
-The admin password check is also client-side only, so treat it as a convenience, not security.
+       update profiles set is_admin = true where username = 'your-username';
+
+Admins see the team assignment table in the Account tab and the Settings tab. Logins use a username plus a hidden email of the form `username@josh-fantasy.app`.
+
+Draft picks and roster moves are still saved in each visitor's own browser, not shared.
 
 ## Editing league data
 
