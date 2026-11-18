@@ -73,6 +73,7 @@ input{flex:1;min-width:160px}
 h3{font:800 22px var(--disp);margin:20px 0 8px}
 .wk{margin:0 0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}.wk summary{cursor:pointer;padding:12px 16px;font:800 24px var(--disp);display:flex;justify-content:space-between;align-items:baseline}.wk summary span{font:400 14px var(--body);color:var(--mute)}.wk .board{padding:0 14px 14px}
 .p.drafted{opacity:.55}.chk{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap}.chk input{flex:none;min-width:0;width:auto}
+.tl{color:inherit;text-decoration:underline dotted;text-underline-offset:3px}.tl:hover{color:var(--blue)}.tl:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -93,13 +94,13 @@ const CODES=["CGY", "MIN", "TOR", "PHI", "BOS", "SFS", "CAR", "NYC", "MTL", "ORL
 const lg=(i,c)=>`<img class="lg ${c||''}" src="${LOGOS[CODES[i]]}" alt="">`;
 const TEAMS=["Calgary Wings","Minnesota Gray Ducks","Toronto Rockets","Philadelphia Freedom","Boston Grizzlies","San Francisco Stingrays","Carolina Cobras","New York Phantoms","Montreal Voyageurs","Orlando Storm","Seattle Golden Eagles","Milwaukee Muskies"].map(n=>({n,o:"Unassigned",w:0,l:0,t:0,f:0,a:0,s:"-"}));
 const GAMES=[[0,1,[0,0],[0,0],"Not started"],[2,3,[0,0],[0,0],"Not started"],[4,5,[0,0],[0,0],"Not started"],[6,7,[0,0],[0,0],"Not started"],[8,9,[0,0],[0,0],"Not started"],[10,11,[0,0],[0,0],"Not started"]];
-let MAX=11;
+let MAX=10;
 let RS={added:[],cut:[],st:{}};
 try{const s=JSON.parse(localStorage.getItem('blueline-rs'));if(s&&s.st)RS=s}catch(e){}
 const saveRS=()=>{try{localStorage.setItem('blueline-rs',JSON.stringify(RS))}catch(e){}};
 const $=s=>document.querySelector(s);let msg="",q="",pf="All";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function standings(){const rows=TEAMS.slice(0,N).map((t,i)=>`<tr class="${i==myT()?'me':''}"><td class="rk">${i+1}</td><td class="nm">${lg(i)}<span class="team">${esc(t.n)}</span><span class="own">${esc(t.o)}</span></td><td>${t.w}-${t.l}</td><td>${t.f.toFixed(1)}</td><td>${t.a.toFixed(1)}</td><td class="${t.s[0]=='W'?'hot':t.s[0]=='L'?'cold':''}">${t.s}</td></tr>`).join("");
+function standings(){const rows=TEAMS.slice(0,N).map((t,i)=>`<tr class="${i==myT()?'me':''}"><td class="rk">${i+1}</td><td class="nm">${lg(i)}<a class="team tl" href="#team-${i}">${esc(t.n)}</a><span class="own">${esc(t.o)}</span></td><td>${t.w}-${t.l}</td><td>${t.f.toFixed(1)}</td><td>${t.a.toFixed(1)}</td><td class="${t.s[0]=='W'?'hot':t.s[0]=='L'?'cold':''}">${t.s}</td></tr>`).join("");
 return `<h2>Standings</h2><div class="scroll"><table><thead><tr><th></th><th>Team</th><th>W-L</th><th>Points for</th><th>Points against</th><th>Streak</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">Ranked by record, then points for.</p>`}
 const SCORES={};
 function schedule(n){const t=[...Array(n).keys()];if(n%2)t.push(-1);const m=t.length,out=[];
@@ -114,7 +115,7 @@ const stOf=id=>RS.st[id]||'S';
 function myIds(){const t=myT();if(t<0)return [];const base=DR.filter((d,i)=>slot(i)==t).map(d=>d.pid);return [...new Set([...base,...RS.added])].filter(id=>!RS.cut.includes(id))}
 const canStart=(s,g)=>s<=5&&g<=3&&s+g<=6;
 function stMap(){const ids=myIds(),m={},c={sk:0,g:0,B:0,IR:0};
-ids.forEach(id=>{const s=RS.st[id];if(s){m[id]=s;const p=dPl(id);if(s=='S')p.g?c.g++:c.sk++;else c[s]++}});
+ids.forEach(id=>{const s=RS.st[id];if(s&&s!='IR'){m[id]=s;const p=dPl(id);if(s=='S')p.g?c.g++:c.sk++;else c[s]++}});
 const rest=ids.filter(id=>!m[id]).map(dPl).filter(Boolean).sort((a,b)=>b.pts-a.pts);
 const g1=rest.find(p=>p.g);if(g1&&c.g==0){rest.splice(rest.indexOf(g1),1);rest.unshift(g1)}
 rest.forEach(p=>{const s2=c.sk+(p.g?0:1),g2=c.g+(p.g?1:0);if(canStart(s2,g2)){c.sk=s2;c.g=g2;m[p.id]='S'}else if(c.B<4){c.B++;m[p.id]='B'}else m[p.id]='U'});return m}
@@ -123,18 +124,18 @@ const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div cla
 if(t<0)return head+`<div class='empty'>Log in with an account that has a team to manage a roster. The commissioner assigns teams in the Account tab.</div>`;
 const ids=myIds();
 if(!ids.length)return head+`<div class='empty'>Your roster is empty. Players you draft will show up here.</div>`;
-const m=stMap(),all=ids.map(dPl).filter(Boolean),SK=all.filter(p=>m[p.id]=='S'&&!p.g),G=all.filter(p=>m[p.id]=='S'&&p.g),B=all.filter(p=>m[p.id]=='B'),I=all.filter(p=>m[p.id]=='IR'),U=all.filter(p=>m[p.id]=='U');
+const m=stMap(),all=ids.map(dPl).filter(Boolean),SK=all.filter(p=>m[p.id]=='S'&&!p.g),G=all.filter(p=>m[p.id]=='S'&&p.g),B=all.filter(p=>m[p.id]=='B'),U=all.filter(p=>m[p.id]=='U');
 const skSlot=SK.slice(0,3),gSlot=G.slice(0,1),flex=[...SK.slice(3),...G.slice(1)];
 const tot=Math.round(all.reduce((s,p)=>s+(CUR[p.id]||0),0)*100)/100;
 const btn=(a,id,l,dis)=>`<button data-${a}='${id}' ${dis?'disabled':''}>${l}</button>`;
-const row=(p,s)=>pRow(cp(p),`<span class='acts'>${s!='S'?btn('start',p.id,'Start',!canStart(SK.length+(p.g?0:1),G.length+(p.g?1:0))):''}${s!='B'?btn('bench',p.id,'Bench',B.length>=4):''}${s!='IR'?btn('ir',p.id,'IR',I.length>=1):''}${btn('cut',p.id,'Cut')}</span>`);
+const row=(p,s)=>pRow(cp(p),`<span class='acts'>${s!='S'?btn('start',p.id,'Start',!canStart(SK.length+(p.g?0:1),G.length+(p.g?1:0))):''}${s!='B'?btn('bench',p.id,'Bench',B.length>=4):''}${btn('cut',p.id,'Cut')}</span>`);
 const sec=(title,list,s,empty)=>`<h3>${title}</h3>${list.length?list.map(p=>row(p,s)).join(''):`<div class='empty'>${empty}</div>`}`;
-return head+`<p class='note'>${ids.length} of ${MAX} roster spots filled · ${tot} points this season (everyone starts at 0) · Lineup: 3 skaters, 2 flex (skater or goalie) and 1 goalie.</p>`+sec(`Skaters (${skSlot.length} of 3)`,skSlot,'S','Open skater spots.')+sec(`Flex (${flex.length} of 2)`,flex,'S','Open flex spots. A skater or a goalie can fill these.')+sec(`Goalie (${gSlot.length} of 1)`,gSlot,'S','No starting goalie.')+sec(`Bench (${B.length} of 4)`,B,'B','Nobody on the bench.')+sec(`Injured reserve (${I.length} of 1)`,I,'IR','The IR spot is open.')+(U.length?sec('Not in the lineup',U,'U','')+`<p class='note'>These players have no open spot. Bench or IR them if there is room, or cut them.</p>`:'')}
+return head+`<p class='note'>${ids.length} of ${MAX} roster spots filled · ${tot} points this season (everyone starts at 0) · Lineup: 3 skaters, 2 flex (skater or goalie) and 1 goalie.</p>`+sec(`Skaters (${skSlot.length} of 3)`,skSlot,'S','Open skater spots.')+sec(`Flex (${flex.length} of 2)`,flex,'S','Open flex spots. A skater or a goalie can fill these.')+sec(`Goalie (${gSlot.length} of 1)`,gSlot,'S','No starting goalie.')+sec(`Bench (${B.length} of 4)`,B,'B','Nobody on the bench.')+(U.length?sec('Not in the lineup',U,'U','')+`<p class='note'>These players have no open spot. Bench them if there is room, or cut them.</p>`:'')}
 function setSt(id,s){id=+id;const p=dPl(id),m=stMap(),others=myIds().filter(y=>y!=id);
 if(s=='S'){const sk=others.filter(y=>m[y]=='S'&&!dPl(y).g).length,g=others.filter(y=>m[y]=='S'&&dPl(y).g).length;
 if(!canStart(sk+(p.g?0:1),g+(p.g?1:0))){msg='Your starting lineup is full. Bench someone first.';return render()}}
-else if(others.filter(y=>m[y]==s).length>=(s=='B'?4:1)){msg=s=='B'?'The bench is full (4 max).':'The IR spot is taken.';return render()}
-RS.st[id]=s;msg=p.name+(s=='S'?' moved to the starting lineup.':s=='B'?' moved to the bench.':' placed on IR.');saveRS();render()}
+else if(others.filter(y=>m[y]==s).length>=4){msg='The bench is full (4 max).';return render()}
+RS.st[id]=s;msg=p.name+(s=='S'?' moved to the starting lineup.':' moved to the bench.');saveRS();render()}
 function cutP(id){id=+id;RS.added=RS.added.filter(x=>x!=id);if(!RS.cut.includes(id))RS.cut.push(id);delete RS.st[id];msg=dPl(id).name+' cut and sent to free agents.';saveRS();render()}
 function addFA(id){id=+id;if(myT()<0){msg='Log in with an account that has a team first.';return render()}
 if(myIds().length>=MAX){msg='Your roster is full. Cut someone first.';return render()}
@@ -209,9 +210,9 @@ if(ins.error){await sb.auth.signOut();amsg='Could not create the profile: '+ins.
 await loadAll();amsg='Account created. Ask the commissioner to assign your team.';render()}
 async function assign(id,v){const r=await sb.from('profiles').update({team:v===''?null:+v}).eq('id',id).select();amsg=dbok(r)?'Team saved.':'Could not save. Only the commissioner can assign teams.';await loadAll();render()}
 const adminSection=()=>ADM?adminPanel():'';
-let SET={teams:12,rounds:8,roster:11,timer:0},KICKED=new Set();
+let SET={teams:12,rounds:8,roster:10,timer:0},KICKED=new Set();
 function applySet(d){const c=(v,a,b,f)=>Math.min(b,Math.max(a,v!=null&&Number.isFinite(+v)?+v:f));const old=SET.timer;
-SET={teams:c(d.teams,2,12,12),rounds:c(d.rounds,1,12,8),roster:c(d.roster,11,16,11),timer:[60,1800,3600,86400].includes(d.timer)?d.timer:0};
+SET={teams:c(d.teams,2,12,12),rounds:c(d.rounds,1,12,8),roster:c(d.roster,10,16,10),timer:[60,1800,3600,86400].includes(d.timer)?d.timer:0};
 SET.rounds=Math.min(SET.rounds,Math.max(1,Math.floor(DPLAYERS.length/SET.teams)));
 N=SET.teams;ROUNDS=SET.rounds;MAX=SET.roster;ORD=[...Array(N).keys()].reverse()}
 const fmt=s=>{s=Math.max(0,Math.ceil(s));const d=Math.floor(s/86400),hr=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+'d ':'')+(hr||d?hr+'h ':'')+(m||hr||d?m+'m ':'')+(s%60)+'s'};
@@ -223,15 +224,18 @@ const rng=(a,b)=>Array.from({length:b-a+1},(_,i)=>[a+i,a+i]);
 const sel=(k,o,cur)=>`<select data-set='${k}'>${o.map(([v,l])=>`<option value='${v}' ${v==cur?'selected':''}>${l}</option>`).join('')}</select>`;
 const me=SES&&SES.id;
 const rows=ACCTS.slice().sort((a,b)=>a.username.localeCompare(b.username)).map(a=>{const k=KICKED.has(a.id);return `<tr><td>${esc(a.username)}${k?' (removed)':''}</td><td>${k?`<button data-restore='${esc(a.id)}'>Restore</button>`:a.id==me?'You':`<button data-kick='${esc(a.id)}'>Kick</button>`}</td></tr>`}).join('');
-return `<h2>League settings</h2><p class='msg' role='status'>${esc(amsg)}</p><div class='form'><label>Teams in league${sel('teams',rng(2,12),SET.teams)}</label><label>Draft rounds${sel('rounds',rng(1,12),SET.rounds)}</label><label>Roster size${sel('roster',rng(11,16),SET.roster)}</label><label>Draft timer per pick${sel('timer',[[0,'No timer'],[60,'60 seconds'],[1800,'30 minutes'],[3600,'1 hour'],[86400,'1 day']],SET.timer)}</label></div><p class='note'>Changes save right away for everyone. Changing teams or rounds mid-draft moves the board, so reset the draft first. When a timer runs out, the best available player is picked automatically, as long as someone has the Draft tab open.</p><h2 style='margin-top:28px'>Members</h2>${ACCTS.length?`<div class='scroll'><table class='adm'><thead><tr><th>Username</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class='empty'>No accounts yet.</div>`}<p class='note'>Kicked members are signed out, can’t log back in, and lose their team until you restore them.</p>`}
+return `<h2>League settings</h2><p class='msg' role='status'>${esc(amsg)}</p><div class='form'><label>Teams in league${sel('teams',rng(2,12),SET.teams)}</label><label>Draft rounds${sel('rounds',rng(1,12),SET.rounds)}</label><label>Roster size${sel('roster',rng(10,16),SET.roster)}</label><label>Draft timer per pick${sel('timer',[[0,'No timer'],[60,'60 seconds'],[1800,'30 minutes'],[3600,'1 hour'],[86400,'1 day']],SET.timer)}</label></div><p class='note'>Changes save right away for everyone. Changing teams or rounds mid-draft moves the board, so reset the draft first. When a timer runs out, the best available player is picked automatically, as long as someone has the Draft tab open.</p><h2 style='margin-top:28px'>Members</h2>${ACCTS.length?`<div class='scroll'><table class='adm'><thead><tr><th>Username</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class='empty'>No accounts yet.</div>`}<p class='note'>Kicked members are signed out, can’t log back in, and lose their team until you restore them.</p>`}
 async function saveSet(k,v){const r=await sb.from('settings').update({[k]:+v}).eq('id',1).select();amsg=dbok(r)?'Setting saved.':'Could not save. Only the commissioner can change settings.';await loadAll();render()}
 async function kick(id){const r=await sb.from('profiles').update({kicked:true,team:null}).eq('id',id).select();amsg=dbok(r)?'Member removed.':'Could not remove the member.';await loadAll();render()}
 async function restore(id){const r=await sb.from('profiles').update({kicked:false}).eq('id',id).select();amsg=dbok(r)?'Member restored.':'Could not restore the member.';await loadAll();render()}
+function teamView(i){const t=TEAMS[i];if(!t||i>=N)return `<h2>Team not found</h2><p><a href="#standings">Back to standings</a></p>`;
+const list=DR.filter((d,k)=>slot(k)==i).map(d=>dPl(d.pid)).filter(Boolean);
+return `<p><a class="tl" href="#standings">← Back to standings</a></p><h2>${lg(i,'b')}${esc(t.n)}</h2><p class="note">Owner: ${esc(t.o)} · ${list.length} players · 0 points this season</p>`+(list.length?list.map(p=>pRow(cp(p),'')).join(''):`<div class="empty">No players yet. Drafted players will show up here.</div>`)+`<p class="note">Shows the players this team drafted. Everyone starts the new season at 0 points.</p>`}
 const VIEWS={standings,matchups,roster,players,draft,account,settings};
-function render(){const h=(location.hash||"#standings").slice(1);const k=VIEWS[h]?h:"standings";
+function render(){const h=(location.hash||"#standings").slice(1),tm=/^team-(\d+)$/.exec(h);const k=tm?"standings":VIEWS[h]?h:"standings";
 document.querySelectorAll("#nav a").forEach(a=>a.removeAttribute("aria-current"));
 document.querySelector(`#nav a[href="#${k}"]`).setAttribute("aria-current","page");
-$("#view").innerHTML=VIEWS[k]();who();
+$("#view").innerHTML=tm?teamView(+tm[1]):VIEWS[k]();who();
 const qi=$("#q");if(qi){qi.oninput=e=>{q=e.target.value;const pos=e.target.selectionStart;render();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)}}
 const ps=$("#pf");if(ps)ps.onchange=e=>{pf=e.target.value;render()}
 const di=$("#dq");if(di){di.oninput=e=>{dq=e.target.value;const pos=e.target.selectionStart;render();const n=$("#dq");n.focus();n.setSelectionRange(pos,pos)}}
@@ -255,7 +259,7 @@ if("undo" in d&&ADM&&DR.length){const r=await sb.from('draft_state').update({pic
 if("reset" in d&&ADM){if(rc){const r=await sb.from('draft_state').update({started:false,picks:[],deadline:null}).eq('id',1).select();RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=dbok(r)?'Draft reset.':'Could not reset.';await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
 });
 addEventListener("hashchange",()=>{msg="";amsg="";render()});
-$("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.ir)setSt(d.ir,'IR');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName()});
+$("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName()});
 $("#view").addEventListener("change",e=>{const d=e.target.dataset;if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value);if(e.target.id=='hd'){HIDE=e.target.checked;try{localStorage.setItem('blueline-hide',HIDE?'1':'0')}catch(x){}render()}});
 render();
 loadAll();setInterval(loadAll,20000);loadDraft();setInterval(loadDraft,3000);
