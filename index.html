@@ -188,6 +188,9 @@ button.gp.gvb{display:grid;gap:3px;text-align:left;width:100%;box-sizing:border-
 .gp label{font-size:11.5px}
 .gvs .row{align-items:center}.gvs .lg{width:30px;height:30px}
 .srow{display:grid;grid-template-columns:1fr auto 56px;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}.srow b{font:700 18px var(--disp)}.srow small{font:600 12px var(--mono);color:var(--mute);text-align:right}
+.logo-ed{align-items:center}.logo-ed .lg{width:56px;height:56px;border-radius:10px;background:var(--chip);margin:0}
+.upl{display:inline-flex;align-items:center;cursor:pointer;font:700 13px var(--body);border:1.5px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:7px 12px}.upl:hover{border-color:var(--blue)}.upl:focus-within{outline:2px solid var(--red);outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 </style>
 </head>
 <body>
@@ -217,7 +220,9 @@ const LOGOS={"CGY": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53M
 const CODES=["CGY", "MIN", "TOR", "PHI", "BOS", "SFS", "CAR", "NYC", "MTL", "ORL", "SEA", "MIL"];
 const LOGOS0={...LOGOS};CODES.forEach(c=>{LOGOS[c]='https://rtojwnsdodcoyhlnuusy.supabase.co/functions/v1/bhl-stats?logo='+c});
 const lgFix=c=>`onerror="this.onerror=null;this.src=LOGOS0['${c}']"`;
-const lg=(i,c)=>`<img class="lg ${c||''}" src="${LOGOS[CODES[i]]}" ${lgFix(CODES[i])} alt="">`;
+let TLOGO={};
+const lgB=(i,c)=>`<img class="lg ${c||''}" src="${LOGOS[CODES[i]]}" ${lgFix(CODES[i])} alt="">`;
+const lg=(i,c)=>TLOGO[i]?`<img class="lg ${c||''}" src="${TLOGO[i]}" alt="">`:lgB(i,c);
 const TEAMS=["Calgary Wings","Minnesota Gray Ducks","Toronto Rockets","Philadelphia Freedom","Boston Grizzlies","San Francisco Stingrays","Carolina Cobras","New York Phantoms","Montreal Voyageurs","Orlando Storm","Seattle Golden Eagles","Milwaukee Muskies"].map(n=>({n,o:"Unassigned",w:0,l:0,t:0,f:0,a:0,s:"-"}));
 const GAMES=[[0,1,[0,0],[0,0],"Not started"],[2,3,[0,0],[0,0],"Not started"],[4,5,[0,0],[0,0],"Not started"],[6,7,[0,0],[0,0],"Not started"],[8,9,[0,0],[0,0],"Not started"],[10,11,[0,0],[0,0],"Not started"]];
 let MAX=10;
@@ -298,7 +303,7 @@ function gOpp(p,w){const G=pGames(p,w);if(G.length){const g=G[0],i=CODES.indexOf
 let GST=null;
 function statMenu(){if(!GST)return '';const [w,t,pid,g]=GST,p=dPl(pid);if(!p){GST=null;return ''}
 const G=pGames(p,w)[g-1],v=pv(w,t,pid),pts=g==1?v.g1:v.g2,ix=c=>CODES.indexOf(c);
-const me=G?ix(G.team):(CODES.indexOf(p.pos)),o=G?ix(G.opp):gOpp(p,w),side=(i,c)=>i>=0?lg(i)+esc(tmn(i)):esc(c||'');
+const me=G?ix(G.team):(CODES.indexOf(p.pos)),o=G?ix(G.opp):gOpp(p,w),side=(i,c)=>i>=0?lgB(i)+esc(NAME0[i]||c||''):esc(c||'');
 const fx=x=>(+x||0).toFixed(2).replace(/\.?0+$/,'')||'0',mm=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 const R=(k,x,pp)=>`<div class='srow'><span>${k}</span><b>${x}</b><small>${pp==null?'':(pp>0?'+':'')+fx(pp)}</small></div>`;
 let rows;
@@ -366,7 +371,7 @@ const rest=ids.filter(id=>!m[id]).map(dPl).filter(Boolean).sort((a,b)=>b.pts-a.p
 const g1=rest.find(p=>p.g);if(g1&&c.g==0){rest.splice(rest.indexOf(g1),1);rest.unshift(g1)}
 rest.forEach(p=>{const s2=c.sk+(p.g?0:1),g2=c.g+(p.g?1:0);if(canStart(s2,g2)){c.sk=s2;c.g=g2;m[p.id]='S'}else if(c.B<4){c.B++;m[p.id]='B'}else m[p.id]='U'});return m}
 function roster(){const t=myT();
-const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div class='tools'><input id='tn' maxlength='30' value="${esc(TEAMS[t].n)}" aria-label='Team name'><button data-savename>Save name</button></div><p class='note'>Everyone in the league sees this name.</p>`:''}<p class='msg' role='status'>${esc(msg)}</p>`;
+const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div class='tools'><input id='tn' maxlength='30' value="${esc(TEAMS[t].n)}" aria-label='Team name'><button data-savename>Save name</button></div><p class='note'>Everyone in the league sees this name.</p><div class='tools logo-ed'>${lg(t,'b')}<label class='upl'>Upload logo<input id='tlogo' class='vh' type='file' accept='image/*'></label>${TLOGO[t]?`<button data-dellogo>Use BHL logo</button>`:''}</div><p class='note'>Square images look best. It’s shrunk to 160×160 and shown everywhere your team appears.</p>`:''}<p class='msg' role='status'>${esc(msg)}</p>`;
 if(t<0)return head+`<div class='empty'>Log in with an account that has a team to manage a roster. The commissioner assigns teams in the Account tab.</div>`;
 const ids=myIds();
 if(!ids.length)return head+`<div class='empty'>Your roster is empty. Players you draft will show up here.</div>`;
@@ -441,6 +446,13 @@ function owners(){TEAMS.forEach((t,i)=>{t.o=OWN0[i];t.n=NAMES[i]||NAME0[i]});for
 const soft=()=>{const el=document.activeElement;if(!(el&&el.closest&&el.closest('#view input, #view select')))render()};
 const myT=()=>SES&&ASSIGN[SES.id]!=null?+ASSIGN[SES.id]:-1;
 function who(){$('#setTab').hidden=!ADM;const wl=$('#wkNav');if(wl)wl.textContent=SET.week?'Week '+SET.week+' of 8':'Preseason';const tl=$('#trTxt');if(tl){const n=TRADES.filter(x=>x.status=='pending'&&x.to_team==myT()).length;tl.textContent='Trade'+(n?' ('+n+')':'')}const t=SES&&ASSIGN[SES.id];$('#who').textContent=SES?SES.username+(t!=null&&TEAMS[t]?' · '+TEAMS[t].n:''):'Not signed in'}
+async function loadLogos(){if(!sb)return;try{const r=await sb.from('team_logos').select('idx,logo');if(r.error)return;const n={};(r.data||[]).forEach(x=>n[x.idx]=x.logo);if(JSON.stringify(n)!==JSON.stringify(TLOGO)){TLOGO=n;soft()}}catch(e){}}
+function shrinkImg(file){return new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),k=Math.min(S/im.width,S/im.height),w=im.width*k,h=im.height*k;x.drawImage(im,(S-w)/2,(S-h)/2,w,h);URL.revokeObjectURL(u);let d=c.toDataURL('image/webp',.85);if(!d.startsWith('data:image/webp'))d=c.toDataURL('image/png');ok(d)};im.onerror=()=>{URL.revokeObjectURL(u);no()};im.src=u})}
+async function setLogo(file){if(!sb||myT()<0)return;let d=null;
+if(file){if(!/^image\//.test(file.type)){msg='Pick an image file.';return render()}try{d=await shrinkImg(file)}catch(e){msg='Couldn’t read that image. Try a PNG or JPG.';return render()}}
+const r=await sb.rpc('set_team_logo',{p_logo:d||''});msg=r.error?(/function|schema/i.test(r.error.message)?'Custom logos aren’t switched on in the database yet.':'Could not save the logo: '+r.error.message):(d?'Team logo saved.':'Back to the BHL logo.');await loadLogos();render()}
+document.addEventListener('change',e=>{if(e.target.id=='tlogo'&&e.target.files[0])setLogo(e.target.files[0])});
+document.addEventListener('click',e=>{if(e.target.dataset&&'dellogo' in e.target.dataset)setLogo(null)});
 async function loadAll(){if(!sb)return soft();
 try{const [p,s,tn]=await Promise.all([sb.from('profiles').select('*'),sb.from('settings').select('*').eq('id',1).maybeSingle(),sb.from('team_names').select('*')]);
 if(tn&&!tn.error&&tn.data){NAMES={};tn.data.forEach(x=>NAMES[x.idx]=x.name)}
@@ -608,7 +620,7 @@ if(d.ts!=null&&e.target.type=='checkbox'){TR.send=tog(TR.send,+d.ts);render()}
 if(d.tr!=null&&e.target.type=='checkbox'){TR.recv=tog(TR.recv,+d.tr);render()}
 if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value);if(e.target.id=='hd'){HIDE=e.target.checked;try{localStorage.setItem('blueline-hide',HIDE?'1':'0')}catch(x){}render()}});
 render();
-loadAll();setInterval(loadAll,20000);loadDraft();setInterval(loadDraft,3000);
+loadAll();setInterval(loadAll,20000);loadLogos();setInterval(loadLogos,30000);loadDraft();setInterval(loadDraft,3000);
 loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadPts();setInterval(loadPts,5000);loadBHL();setInterval(loadBHL,300000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},1500);
 setInterval(()=>{if(location.hash!='#game'||!GS||GS.status!='bidding'||GS.paused)return;const left=(GS.ends_at-Date.now())/1000,el=$('#gt');if(el)el.textContent=left>0?Math.ceil(left)+'s':'Time!';
 if(left<=0&&Date.now()-GLAST>1500){GLAST=Date.now();sb.rpc('resolve_round').then(loadGame)}},250);
