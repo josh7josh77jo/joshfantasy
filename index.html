@@ -192,8 +192,8 @@ button.gp.gvb{display:grid;gap:3px;text-align:left;width:100%;box-sizing:border-
 .upl{display:inline-flex;align-items:center;cursor:pointer;font:700 13px var(--body);border:1.5px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:7px 12px}.upl:hover{border-color:var(--blue)}.upl:focus-within{outline:2px solid var(--red);outline-offset:2px}
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .sheet.wide{width:min(760px,100%)}
-.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
-.lopt{display:grid;justify-items:center;gap:4px;padding:8px;border-radius:10px;background:var(--panel)}.lopt img{width:72px;height:72px;object-fit:contain}.lopt small{font:600 11px var(--mono);color:var(--mute)}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-top:12px}
+.lopt{display:grid;justify-items:center;align-content:start;gap:3px;padding:10px 6px;border-radius:10px;background:var(--panel);text-align:center}.lopt b{font:700 12.5px/1.2 var(--body)}.lopt img{width:72px;height:72px;object-fit:contain}.lopt small{font:600 11px var(--mono);color:var(--mute)}
 .lopt:hover{border-color:var(--blue)}
 </style>
 </head>
@@ -458,8 +458,8 @@ async function openPicker(){LPICK=true;render();if(!LLIST||LLIST==='err'){LLIST=
 function pickerMenu(){if(!LPICK||myT()<0)return '';let body;
 if(LLIST==null)body=`<div class='empty'>Loading every BHL logo…</div>`;
 else if(LLIST==='err')body=`<div class='empty'>Couldn’t load the BHL logos. Close this and try again.</div>`;
-else{const by={};LLIST.forEach(x=>(by[x.name]=by[x.name]||[]).push(x));body=Object.keys(by).sort().map(n=>`<h3>${esc(n)}</h3><div class='lgrid'>${by[n].map(x=>`<button class='lopt' data-lteam='${esc(x.id)}' ${LBUSY?'disabled':''} aria-label='${esc(n)} logo from ${esc(x.seasonName||'an older season')}'><img src='${STORE+x.file}' loading='lazy' alt=''><small>${esc(x.seasonName||'Older')}</small></button>`).join('')}</div>`).join('')}
-return `<div class='ov' data-lclose><div class='sheet wide' role='dialog' aria-modal='true' aria-labelledby='lph'><button class='x' data-lclose aria-label='Close'>✕</button><h2 id='lph' style='margin:0 0 4px'>Choose a BHL logo</h2><p class='note'>Every logo BHL teams have used, newest season first.${LBUSY?' <b>Saving…</b>':''}</p>${body}</div></div>`}
+else{const L=LLIST.slice().sort((a,b)=>a.name.localeCompare(b.name));body=`<div class='lgrid'>${L.map(x=>`<button class='lopt' data-lteam='${esc(x.id)}' ${LBUSY?'disabled':''} aria-label='${esc(x.name)} logo from ${esc(x.seasonName||'an older season')}'><img src='${STORE+x.file}' loading='lazy' alt=''><b>${esc(x.name)}</b><small>${esc(x.seasonName||'Older')}</small></button>`).join('')}</div>`}
+return `<div class='ov' data-lclose><div class='sheet wide' role='dialog' aria-modal='true' aria-labelledby='lph'><button class='x' data-lclose aria-label='Close'>✕</button><h2 id='lph' style='margin:0 0 4px'>Choose a BHL logo</h2><p class='note'>Every logo a BHL team has used, from any season.${LBUSY?' <b>Saving…</b>':''}</p>${body}</div></div>`}
 async function pickLogo(id){const x=(LLIST||[]).find(y=>y.id==id);if(!x)return;LBUSY=id;render();try{const b=await fetch(STORE+x.file).then(r=>{if(!r.ok)throw 0;return r.blob()});LPICK=false;LBUSY='';await setLogo(b)}catch(e){LBUSY='';msg='Couldn’t load that logo. Try another.';LPICK=false;render()}}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;if(t.closest('[data-lpick]')){openPicker();return}
 const o=t.closest('[data-lteam]');if(o&&!o.disabled){pickLogo(o.dataset.lteam);return}
