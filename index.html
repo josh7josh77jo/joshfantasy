@@ -222,9 +222,10 @@ body{background:var(--bg);color:var(--fg);font:500 15px/1.5 var(--body)}
 .side{position:sticky;top:0;z-index:20;height:auto;overflow:visible;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 24px;padding:calc(10px + env(safe-area-inset-top,0px)) clamp(16px,4vw,48px) 10px;background:var(--bar);border-right:0;border-bottom:3px solid var(--red)}
 .brand{padding:0;border:0}.brand::after{display:none}
 .brand img{width:36px;height:36px}
-.brand b{font:900 20px/1 var(--disp);font-stretch:125%;letter-spacing:-.01em;color:var(--red)}.brand small{color:var(--mute)}
+.brand b{font:900 20px/1 var(--disp);font-stretch:125%;letter-spacing:-.01em;color:var(--red);white-space:nowrap}.brand small{color:var(--mute);white-space:nowrap}
+.side>.brand{flex:none}
 nav{flex-direction:row;flex-wrap:wrap;gap:2px;flex:1}
-nav a{padding:10px 12px;min-height:44px;border-radius:4px;color:var(--fg);font:600 15px/1 var(--body);background:transparent;box-shadow:none}
+nav a{padding:10px 10px;min-height:44px;border-radius:4px;color:var(--fg);font:600 14px/1 var(--body);background:transparent;box-shadow:none}
 nav a svg{display:none}
 nav a:hover{background:var(--card);color:var(--fg)}
 nav a[aria-current=page]{background:var(--red-deep);color:#fff;box-shadow:none}
@@ -236,6 +237,7 @@ main{max-width:1280px;margin:0 auto;padding:clamp(24px,4vw,56px) clamp(16px,4vw,
 nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,.tl:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 /* type */
 h2{font:900 clamp(40px,7vw,88px)/.9 var(--disp);font-stretch:125%;letter-spacing:-.035em;margin:0 0 16px}
+#view>h2:not(:first-child){font-size:clamp(32px,4vw,48px);margin-top:56px}
 #view>h2:first-child{padding-bottom:0;margin-bottom:20px}#view>h2:first-child::after{display:none}
 h3{font:800 15px/1.3 var(--body);letter-spacing:0;color:var(--mute);border:0;padding:0;margin:24px 0 10px}
 .note{color:var(--mute);font-size:14px}.msg{color:var(--red)}
@@ -250,6 +252,7 @@ h3{font:800 15px/1.3 var(--body);letter-spacing:0;color:var(--mute);border:0;pad
 .row.lead{box-shadow:inset 4px 0 0 var(--red);padding-left:10px;margin-left:-16px;padding-left:12px}
 .row.lead b{color:var(--fg)}.row:not(.lead) b{color:var(--mute)}
 .bracket .game{padding:12px 16px}
+.game .row b{font-size:26px;letter-spacing:-.01em}.game .row span{display:flex;align-items:center;gap:6px;min-width:0}
 .bracket .champ{background:var(--red-deep);border-color:var(--red-deep);color:#fff;text-align:left;padding:24px}
 .bracket .champ .big{font-size:clamp(32px,4vw,48px);line-height:.95;letter-spacing:-.03em;display:grid;gap:12px;justify-items:start}
 .bracket .champ .lg.b{width:88px;height:88px}.bracket .champ .note{color:#FFE3E3}
