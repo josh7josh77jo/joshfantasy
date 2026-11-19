@@ -292,10 +292,10 @@ let team=null;BHL.games.forEach(g=>{if(g.w!=w)return;g.teams.forEach(t=>{if(t[ke
 const list=(BHLIDX[w+'|'+team]||[]).slice(0,2).map(({g,t,o})=>{const l=t[key].find(x=>x.u.toLowerCase()==nm)||null;let pts=0,extra={};
 if(l){if(p.g){extra=gPts(l,t,o);pts=extra.pts}else pts=skPts(l)}return{team:t.ab,opp:o.ab,date:g.d,tgf:t.gf,ogf:o.gf,line:l,pts,extra,goalie:p.g}});
 return _pgc[ck]=list}
-function gOpp(p,w){const G=pGames(p,w);if(G.length){const g=G[0],i=CODES.indexOf(g.opp);return i<0||i>=N?-1:i}const ti=CODES.indexOf(p.pos);return ti<0||ti>=N?-1:oppOf(ti,w)}
+function gOpp(p,w){const G=pGames(p,w);if(G.length){const g=G[0],i=CODES.indexOf(g.opp);return i}const ti=CODES.indexOf(p.pos);return ti<0||ti>=N?-1:oppOf(ti,w)}
 let GST=null;
 function statMenu(){if(!GST)return '';const [w,t,pid,g]=GST,p=dPl(pid);if(!p){GST=null;return ''}
-const G=pGames(p,w)[g-1],v=pv(w,t,pid),pts=g==1?v.g1:v.g2,ix=c=>{const i=CODES.indexOf(c);return i<0||i>=N?-1:i};
+const G=pGames(p,w)[g-1],v=pv(w,t,pid),pts=g==1?v.g1:v.g2,ix=c=>CODES.indexOf(c);
 const me=G?ix(G.team):(CODES.indexOf(p.pos)),o=G?ix(G.opp):gOpp(p,w),side=(i,c)=>i>=0?lg(i)+esc(tmn(i)):esc(c||'');
 const fx=x=>(+x||0).toFixed(2).replace(/\.?0+$/,'')||'0',mm=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 const R=(k,x,pp)=>`<div class='srow'><span>${k}</span><b>${x}</b><small>${pp==null?'':(pp>0?'+':'')+fx(pp)}</small></div>`;
@@ -314,7 +314,7 @@ document.addEventListener('keydown',e=>{if(e.key=='Escape'&&GST){const k=GST.joi
 function slotRow(w,t,[lab,p],ed){const tag=`<span class='slt ${lab}'>${lab}</span>`;
 if(!p)return `<div class='ms open'>${tag}<span class='n'>Open spot</span></div>`;
 const v=pv(w,t,p.id),k=w+'-'+p.id,f=x=>(+x).toFixed(2).replace(/\.?0+$/,'')||'0';
-const gOppG=g=>{const G=pGames(p,w);if(G[g-1]){const i=CODES.indexOf(G[g-1].opp);return i<0||i>=N?-1:i}return gOpp(p,w)};const vsH=g=>{const o=gOppG(g);return `<span class='vsh'>${o>=0?`<img class='lg' src='${LOGOS[CODES[o]]}' alt=''>`:''}G${g}</span>`},gLab=g=>{const o=gOppG(g);return `Game ${g} stats for ${esc(p.name)}${o>=0?' against '+esc(tmn(o)):''}`};
+const gOppG=g=>{const G=pGames(p,w);if(G[g-1]){const i=CODES.indexOf(G[g-1].opp);return i}return gOpp(p,w)};const vsH=g=>{const o=gOppG(g);return `<span class='vsh'>${o>=0?`<img class='lg' src='${LOGOS[CODES[o]]}' alt=''>`:''}G${g}</span>`},gLab=g=>{const o=gOppG(g);return `Game ${g} stats for ${esc(p.name)}${o>=0?' against '+esc(tmn(o)):''}`};
 const cell=g=>ed?`<div class='gp ${v.pick==g?'on':''}'><div class='gh'><button class='gvb' data-gstat='${w}-${t}-${p.id}-${g}' aria-label='${gLab(g)}'>${vsH(g)}</button><label title='Count this game'><input type='radio' name='pk-${k}' data-mpick='${k}-${g}' ${v.pick==g?'checked':''} aria-label='Count game ${g} for ${esc(p.name)}'>Use</label></div>${v.auto?`<b>${f(g==1?v.g1:v.g2)}</b>`:`<input type='number' step='0.01' data-mg='${k}-${g}' value='${g==1?v.g1:v.g2}' aria-label='${esc(p.name)} game ${g} points'>`}</div>`
 :`<button class='gp gvb ${v.pick==g?'on':''}' data-gstat='${w}-${t}-${p.id}-${g}' aria-label='${gLab(g)}'>${vsH(g)}<b>${f(g==1?v.g1:v.g2)}</b></button>`;
 return `<div class='ms'>${tag}<span class='n'>${esc(p.name)}<small>${esc(p.team)}</small></span>${cell(1)}${cell(2)}<span class='pts'>${f(chosen(v))}</span></div>`}
