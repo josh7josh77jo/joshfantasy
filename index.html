@@ -191,6 +191,10 @@ button.gp.gvb{display:grid;gap:3px;text-align:left;width:100%;box-sizing:border-
 .logo-ed{align-items:center}.logo-ed .lg{width:56px;height:56px;border-radius:10px;background:var(--chip);margin:0}
 .upl{display:inline-flex;align-items:center;cursor:pointer;font:700 13px var(--body);border:1.5px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:7px 12px}.upl:hover{border-color:var(--blue)}.upl:focus-within{outline:2px solid var(--red);outline-offset:2px}
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.sheet.wide{width:min(760px,100%)}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.lopt{display:grid;justify-items:center;gap:4px;padding:8px;border-radius:10px;background:var(--panel)}.lopt img{width:72px;height:72px;object-fit:contain}.lopt small{font:600 11px var(--mono);color:var(--mute)}
+.lopt:hover{border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -371,7 +375,7 @@ const rest=ids.filter(id=>!m[id]).map(dPl).filter(Boolean).sort((a,b)=>b.pts-a.p
 const g1=rest.find(p=>p.g);if(g1&&c.g==0){rest.splice(rest.indexOf(g1),1);rest.unshift(g1)}
 rest.forEach(p=>{const s2=c.sk+(p.g?0:1),g2=c.g+(p.g?1:0);if(canStart(s2,g2)){c.sk=s2;c.g=g2;m[p.id]='S'}else if(c.B<4){c.B++;m[p.id]='B'}else m[p.id]='U'});return m}
 function roster(){const t=myT();
-const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div class='tools'><input id='tn' maxlength='30' value="${esc(TEAMS[t].n)}" aria-label='Team name'><button data-savename>Save name</button></div><p class='note'>Everyone in the league sees this name.</p><div class='tools logo-ed'>${lg(t,'b')}<label class='upl'>Upload logo<input id='tlogo' class='vh' type='file' accept='image/*'></label>${TLOGO[t]?`<button data-dellogo>Use BHL logo</button>`:''}</div><p class='note'>Square images look best. It’s shrunk to 160×160 and shown everywhere your team appears.</p>`:''}<p class='msg' role='status'>${esc(msg)}</p>`;
+const head=`<h2>${t>=0?lg(t,'b')+esc(TEAMS[t].n):'My team'}</h2>${t>=0?`<div class='tools'><input id='tn' maxlength='30' value="${esc(TEAMS[t].n)}" aria-label='Team name'><button data-savename>Save name</button></div><p class='note'>Everyone in the league sees this name.</p><div class='tools logo-ed'>${lg(t,'b')}<button data-lpick>Choose a BHL logo</button><label class='upl'>Upload your own<input id='tlogo' class='vh' type='file' accept='image/*'></label>${TLOGO[t]?`<button data-dellogo>Reset to current logo</button>`:''}</div><p class='note'>Pick any logo a BHL team has used, from any season, or upload your own (square images look best). It shows everywhere your team appears.</p>`:''}<p class='msg' role='status'>${esc(msg)}</p>`;
 if(t<0)return head+`<div class='empty'>Log in with an account that has a team to manage a roster. The commissioner assigns teams in the Account tab.</div>`;
 const ids=myIds();
 if(!ids.length)return head+`<div class='empty'>Your roster is empty. Players you draft will show up here.</div>`;
@@ -448,6 +452,18 @@ const myT=()=>SES&&ASSIGN[SES.id]!=null?+ASSIGN[SES.id]:-1;
 function who(){$('#setTab').hidden=!ADM;const wl=$('#wkNav');if(wl)wl.textContent=SET.week?'Week '+SET.week+' of 8':'Preseason';const tl=$('#trTxt');if(tl){const n=TRADES.filter(x=>x.status=='pending'&&x.to_team==myT()).length;tl.textContent='Trade'+(n?' ('+n+')':'')}const t=SES&&ASSIGN[SES.id];$('#who').textContent=SES?SES.username+(t!=null&&TEAMS[t]?' · '+TEAMS[t].n:''):'Not signed in'}
 async function loadLogos(){if(!sb)return;try{const r=await sb.from('team_logos').select('idx,logo');if(r.error)return;const n={};(r.data||[]).forEach(x=>n[x.idx]=x.logo);if(JSON.stringify(n)!==JSON.stringify(TLOGO)){TLOGO=n;soft()}}catch(e){}}
 function shrinkImg(file){return new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const S=160,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),k=Math.min(S/im.width,S/im.height),w=im.width*k,h=im.height*k;x.drawImage(im,(S-w)/2,(S-h)/2,w,h);URL.revokeObjectURL(u);let d=c.toDataURL('image/webp',.85);if(!d.startsWith('data:image/webp'))d=c.toDataURL('image/png');ok(d)};im.onerror=()=>{URL.revokeObjectURL(u);no()};im.src=u})}
+const FN=SUPA_URL+'/functions/v1/bhl-stats';let LPICK=false,LLIST=null,LBUSY='';
+async function openPicker(){LPICK=true;render();if(LLIST&&LLIST!=='err')return;LLIST=null;try{const d=await fetch(FN+'?logos=list').then(r=>r.json());if(!d.logos)throw 0;LLIST=d.logos}catch(e){LLIST='err'}if(LPICK)render()}
+function pickerMenu(){if(!LPICK||myT()<0)return '';let body;
+if(LLIST==null)body=`<div class='empty'>Loading every BHL logo… the first time can take up to half a minute.</div>`;
+else if(LLIST==='err')body=`<div class='empty'>Couldn’t load the BHL logos. Close this and try again.</div>`;
+else{const by={};LLIST.forEach(x=>(by[x.name]=by[x.name]||[]).push(x));body=Object.keys(by).sort().map(n=>`<h3>${esc(n)}</h3><div class='lgrid'>${by[n].map(x=>`<button class='lopt' data-lteam='${esc(x.id)}' ${LBUSY?'disabled':''} aria-label='${esc(n)} logo from ${esc(x.seasonName||'an older season')}'><img src='${FN}?team=${encodeURIComponent(x.id)}&size=96' loading='lazy' alt=''><small>${esc(x.seasonName||'Older')}</small></button>`).join('')}</div>`).join('')}
+return `<div class='ov' data-lclose><div class='sheet wide' role='dialog' aria-modal='true' aria-labelledby='lph'><button class='x' data-lclose aria-label='Close'>✕</button><h2 id='lph' style='margin:0 0 4px'>Choose a BHL logo</h2><p class='note'>Every logo BHL teams have used, newest season first.${LBUSY?' <b>Saving…</b>':''}</p>${body}</div></div>`}
+async function pickLogo(id){LBUSY=id;render();try{const b=await fetch(FN+'?team='+encodeURIComponent(id)+'&size=160').then(r=>{if(!r.ok)throw 0;return r.blob()});LPICK=false;LBUSY='';await setLogo(b)}catch(e){LBUSY='';msg='Couldn’t load that logo. Try another.';LPICK=false;render()}}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;if(t.closest('[data-lpick]')){openPicker();return}
+const o=t.closest('[data-lteam]');if(o&&!o.disabled){pickLogo(o.dataset.lteam);return}
+if(t.dataset&&'lclose' in t.dataset){LPICK=false;render();const b=document.querySelector('[data-lpick]');if(b)b.focus()}});
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&LPICK){LPICK=false;render();const b=document.querySelector('[data-lpick]');if(b)b.focus()}});
 async function setLogo(file){if(!sb||myT()<0)return;let d=null;
 if(file){if(!/^image\//.test(file.type)){msg='Pick an image file.';return render()}try{d=await shrinkImg(file)}catch(e){msg='Couldn’t read that image. Try a PNG or JPG.';return render()}}
 const r=await sb.rpc('set_team_logo',{p_logo:d||''});msg=r.error?(/function|schema/i.test(r.error.message)?'Custom logos aren’t switched on in the database yet.':'Could not save the logo: '+r.error.message):(d?'Team logo saved.':'Back to the BHL logo.');await loadLogos();render()}
@@ -562,7 +578,7 @@ return head+`<div class='clock done'><b>${w?esc(un(w))+' wins!':'No winner'}</b>
 const pid=(GS.ord||[])[GS.rnd],p=dPl(pid)||{name:'Player',g:false},last=(GS.log||[]).slice(-1)[0],paused=!!GS.paused,left=paused?Math.ceil((GS.paused_left||0)/1000):Math.max(0,Math.ceil((GS.ends_at-Date.now())/1000));
 const bb=n=>`<button data-gbid='${n}' ${!paused&&me&&GS.cur_bidder!=me.id&&GS.cur_bid+n<=me.money?'':'disabled'}>+$${n}</button>`;
 return head+rules+(paused?`<div class='clock'><b>Game paused</b>The commissioner will resume it shortly.</div>`:'')+`<div class='game'><div class='note'>Player ${GS.rnd+1} of ${GS.total_rounds}</div><div class='big'>${gname(p)}</div><p class='note'>${p.g?'Goalie':'Skater'}</p><div class='row'><span>Top bid</span><b>$${GS.cur_bid}</b></div><p class='note'>${GS.cur_bidder?esc(un(GS.cur_bidder))+' is winning':'No bids yet'} · <b id='gt'>${paused?'Paused':left+'s'}</b></p>`+(me?`<div class='tools'>${bb(1)}${bb(2)}${bb(5)}<input id='gamt' type='number' min='1' max='${me.money}' placeholder='Your bid' style='max-width:120px'><button data-gbidc ${paused?'disabled':''}>Bid</button></div><p class='note'>You have $${me.money}.</p>`:`<p class='note'>${SES?'You are watching. Join the next game to bid.':'Log in and join the lobby to bid.'}</p>`)+`</div>`+(last?`<p class='note'>Last: ${gname(dPl(last.pid))} ${last.w?'sold to '+esc(un(last.w))+' for $'+last.price:'went unsold'}.</p>`:'')+`<h3>Teams so far</h3>`+table+menu(`<div class='tools'>${paused?`<button data-gresume>Resume</button>`:`<button data-gpause>Pause</button>`}<button data-gskip>Skip player</button><button data-gend>${GCONF=='end'?'Confirm end':'End bidding'}</button>${rst}</div>`+cfg+`<div class='tools'><button data-gset>Apply settings</button></div><p class='note'>Rounds, seconds and the late-bid extension apply from the next player. Starting money only changes in the lobby, so use Edit players’ money mid-game. End bidding opens the vote.</p>`+moneyEd)}
-const VIEWS={standings,matchups:()=>matchups()+statMenu(),schedule:scheduleView,roster:()=>roster()+swapMenu(),players,draft,trade,game,account,settings};
+const VIEWS={standings,matchups:()=>matchups()+statMenu(),schedule:scheduleView,roster:()=>roster()+swapMenu()+pickerMenu(),players,draft,trade,game,account,settings};
 function render(){const h=(location.hash||"#standings").slice(1),tm=/^team-(\d+)$/.exec(h);const k=tm?"standings":VIEWS[h]?h:"standings";
 document.querySelectorAll("#nav a").forEach(a=>a.removeAttribute("aria-current"));
 document.querySelector(`#nav a:not(.stat)[href="#${k}"]`).setAttribute("aria-current","page");
@@ -589,7 +605,7 @@ if("dstart" in d&&ADM){const r=await sb.from('draft_state').update({started:true
 if("undo" in d&&ADM&&DR.length){const r=await sb.from('draft_state').update({picks:DR.slice(0,-1).map(x=>x.pid),deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Last pick undone.':'Could not undo.';await loadDraft();render()}
 if("reset" in d&&ADM){if(rc){const r=await sb.from('draft_state').update({started:false,picks:[],deadline:null}).eq('id',1).select();RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=dbok(r)?'Draft reset.':'Could not reset.';await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
 });
-addEventListener("hashchange",()=>{msg="";amsg="";SWAP=null;GST=null;render()});
+addEventListener("hashchange",()=>{msg="";amsg="";SWAP=null;GST=null;LPICK=false;render()});
 $("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName();if(d.wk)saveSet('league_week',Math.min(8,Math.max(0,SET.week+ +d.wk)));
 if('tclear' in d){TR.send=[];TR.recv=[];TR.note='';render()}
 if('tsend' in d)sendTrade();
