@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="theme-color" content="#07090d">
+<meta name="theme-color" content="#e9eff5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Josh Fantasy League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--ice:#07090d;--panel:#0f131a;--ink:#e9edf3;--mute:#8b95a5;--line:#1b2230;--red:#ff5d6c;--blue:#7aa7ff;--pos:#3ddc97;--gold:#f2b705;
 --disp:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--lab:'Barlow Condensed','Arial Narrow',sans-serif;--body:'IBM Plex Sans',system-ui,sans-serif;
@@ -90,12 +91,88 @@ tr.cut td{border-bottom:2px dashed var(--gold)}.sd{color:var(--mute);font-weight
 .scf{display:grid;grid-template-columns:1fr 78px 78px;gap:6px;align-items:center;margin-top:8px}.scf button{grid-column:1/-1}.scf input{min-width:0;width:100%}.sc summary{cursor:pointer;color:var(--mute);font-size:13px;margin-top:8px}
 .mu{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:16px}.vs{max-width:520px}
 .mh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0 10px;border-bottom:1px solid var(--line);margin-bottom:10px;font-weight:600}.mh b{font:900 36px/1 var(--disp)}
-.ms{display:grid;grid-template-columns:52px minmax(0,1fr) 92px 92px 48px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}.ms:last-of-type{border-bottom:0}.ms.open .n{color:var(--mute);font-weight:400}
-.ms .n{font-weight:600;min-width:0;overflow-wrap:anywhere}.ms .n small{display:block;color:var(--mute);font-weight:400;font-size:12px}.ms .pts{font-size:22px;min-width:0}
+.ms{display:grid;grid-template-columns:52px minmax(0,1fr) 92px 92px 60px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}.ms:last-of-type{border-bottom:0}.ms.open .n{color:var(--mute);font-weight:400}
+.ms .n{font-weight:600;min-width:0;overflow-wrap:anywhere}.ms .n small{display:block;color:var(--mute);font-weight:400;font-size:12px}.ms .pts{font-size:22px;min-width:0;text-align:right}
 .slt{font:800 14px var(--lab);text-align:center;border-radius:4px;padding:3px 0;background:#2f5fb8;color:#fff}.slt.FLEX{background:#6b4fb8}.slt.G{background:#d63a4a}
 .gp{display:grid;gap:3px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;font-size:12px;color:var(--mute)}.gp.on{border-color:var(--pos);color:var(--ink);background:#0f2219}
 .gp b{font:800 20px/1 var(--disp);color:inherit}.gp label{display:flex;gap:4px;align-items:center;cursor:pointer}.gp input[type=radio]{flex:none;min-width:0;width:auto;margin:0}.gp input[type=number]{min-width:0;width:100%;padding:4px 6px;font-size:14px}
 @media (max-width:520px){.ms{grid-template-columns:48px minmax(0,1fr) minmax(0,1fr) 48px;row-gap:6px}.ms .slt{grid-row:1;grid-column:1}.ms .n{grid-row:1;grid-column:2/4}.ms .pts{grid-row:1;grid-column:4}.ms .gp{grid-row:2;grid-column:1/3}.ms .gp+.gp{grid-column:3/5}}
+/* ===== Theme: Stick Catalog look (light + dark, follows the device) ===== */
+:root{color-scheme:light;
+  --bg:#e9eff5;--card:#ffffff;--chip:#dde7f1;--fg:#132030;--dim:#6b7c8d;--hover:#a9bfd6;--pos-bg:#e3f4ea;
+  --ice:var(--bg);--panel:#ffffff;--ink:var(--fg);--mute:#56687a;--line:#cfdbe6;
+  --red:#d4142f;--red-deep:#b00f26;--blue:#1d55c4;--pos:#13804d;--gold:#d4142f;
+  --shadow:0 1px 0 rgba(19,32,48,.06),0 6px 18px -10px rgba(19,32,48,.35);
+  --disp:"Pixelify Sans","Courier New",monospace;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --lab:var(--body);--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;
+  --bg:#0b1119;--card:#121b26;--chip:#1a2533;--fg:#e6edf5;--dim:#646e79;--hover:#2f4157;--pos-bg:#10261b;
+  --panel:#121b26;--mute:#8fa1b4;--line:#223042;
+  --red:#ff4a62;--red-deep:#d8344b;--blue:#6d9bff;--pos:#3ddc97;--gold:#ff4a62;
+  --shadow:0 1px 0 rgba(0,0,0,.4),0 10px 24px -14px rgba(0,0,0,.8)}}
+body{background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--body)}
+/* sidebar = the catalog's set rail */
+.side{background:var(--bg);border-right:1px solid var(--line)}
+.brand{position:relative;border-bottom:0;padding-bottom:18px}
+.brand::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;background:linear-gradient(var(--red),var(--red)) top/100% 3px no-repeat,linear-gradient(var(--blue),var(--blue)) bottom/100% 2px no-repeat}
+.brand b{font:700 24px/1 var(--disp);letter-spacing:.01em}.brand small{color:var(--mute)}
+nav{gap:2px}
+nav a{padding:8px 10px;border-radius:6px;color:var(--mute);font:700 14px/1.2 var(--body);text-transform:none;letter-spacing:0}
+nav a svg{width:18px;height:18px}
+nav a:hover{background:var(--chip);color:var(--fg)}
+nav a[aria-current=page]{background:var(--chip);color:var(--fg);box-shadow:inset 3px 0 0 var(--red)}
+nav a.stat{color:var(--red);font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+nav a.stat:hover{background:var(--chip)}
+.side #who{color:var(--mute);border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+@media (max-width:900px){.side{border-right:0;border-bottom:1px solid var(--line)}nav a{flex:none;background:var(--chip);border-radius:999px;padding:6px 12px;font-size:13px}nav a[aria-current=page]{background:var(--fg);color:var(--bg);box-shadow:none}}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,.tl:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+/* headings */
+h2{font:700 clamp(28px,4vw,40px)/1.05 var(--disp);letter-spacing:.01em;margin:0 0 14px}
+#view>h2:first-child{position:relative;padding-bottom:16px;margin-bottom:16px}
+#view>h2:first-child::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;background:linear-gradient(var(--red),var(--red)) top/100% 3px no-repeat,linear-gradient(var(--blue),var(--blue)) bottom/100% 2px no-repeat}
+h3{font:700 21px var(--disp);letter-spacing:.02em;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.note{color:var(--mute);font-size:13.5px}.msg{color:var(--blue)}
+/* cards */
+.game,.p,.tr-row,.wk,.cell,table{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.game,.p,.tr-row{transition:border-color .15s,box-shadow .15s}
+.p:hover,.tr-row:hover{border-color:color-mix(in srgb,var(--blue) 45%,var(--line));box-shadow:var(--shadow)}
+.empty{border:1px dashed var(--hover);border-radius:10px;color:var(--mute);background:transparent}
+.wk summary{font:700 22px var(--disp)}.wk summary span{font-family:var(--mono);font-size:12.5px}
+.row b,.mh b,.big,.pts{font-family:var(--disp);font-weight:700}
+.row.lead b{color:var(--red)}
+.proj{color:var(--mute);font-family:var(--mono);font-size:12px;border-top:1px dashed var(--line)}
+/* tables */
+th{font:700 11px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+th,td{border-bottom:1px solid var(--line)}
+td.rk{font:700 30px/1 var(--disp);color:var(--blue)}
+tr.me{background:color-mix(in srgb,var(--red) 8%,var(--card))}tr.me td.rk{color:var(--red)}
+.own,.sd{color:var(--mute)}
+td:not(:nth-child(2)){font-variant-numeric:tabular-nums}
+/* badges and chips */
+.pos{font:600 12px/1.6 var(--mono);background:var(--chip);color:var(--fg);border-radius:5px;padding:2px 6px}
+.pos.G{background:var(--red);color:#fff}.pos.D{background:var(--chip)}
+.slt{font:600 12px/1.6 var(--mono);border-radius:5px;background:var(--blue);color:#fff}.slt.FLEX{background:#7a5cd6}.slt.G{background:var(--red)}
+.pbadge{font:600 11px var(--mono);background:var(--pos-bg);color:var(--pos);border-radius:4px;letter-spacing:.04em}
+.pbadge.out{background:var(--chip);color:var(--mute)}
+/* controls */
+button{font:700 13px var(--body);border:1.5px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:7px 12px}
+button:hover{background:var(--panel);color:var(--fg);border-color:var(--blue)}
+input,select{font:400 15px var(--body);border:1.5px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
+input:focus,select:focus{outline:none;border-color:var(--red)}
+/* draft + banners */
+.clock{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-left:6px solid var(--red);border-radius:10px;box-shadow:var(--shadow)}
+.clock b{font:700 28px/1.1 var(--disp)}.clock.done{background:var(--panel);border-left-color:var(--pos)}
+.dh{font:700 14px/1.15 var(--body);color:var(--mute)}.dh.me{color:var(--red)}
+.cell{border-radius:6px}.cell.now{border:2px solid var(--red)}.cell.mine{background:color-mix(in srgb,var(--red) 8%,var(--card))}
+.cell small,.cell .no{color:var(--mute);font-family:var(--mono);font-size:11px}
+/* matchup game picks */
+.gp{border:1.5px solid var(--line);border-radius:8px;color:var(--mute);background:var(--panel)}
+.gp.on{border-color:var(--blue);color:var(--fg);background:color-mix(in srgb,var(--blue) 10%,var(--panel))}
+.gp input[type=number]{background:var(--bg)}
+.ms{border-bottom:1px dashed var(--line)}
+tr.cut td{border-bottom:2px dashed var(--red)}
+.tr-row.on{border-color:var(--red);background:color-mix(in srgb,var(--red) 8%,var(--card))}
 </style>
 </head>
 <body>
