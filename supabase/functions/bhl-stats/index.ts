@@ -123,6 +123,22 @@ async function buildLogos(force = false): Promise<Response> {
   return new Response(json, { headers: { ...cors, "Content-Type": "application/json" } });
 }
 
+// Fantasy weeks follow BHL's regular-season weeks in order, skipping the All-Star break.
+// Returns a map from BHL week number to fantasy week number.
+const isBreak = (label: string) => /all.?star/i.test(label);
+async function weekMap(seasonId: string): Promise<{ map: Map<number, number>; games: Any[] }> {
+  const games: Any[] = (await (await fetch(API + "/games?season_id=" + encodeURIComponent(seasonId))).json()).games || [];
+  const nums = new Set<number>();
+  for (const g of games) {
+    const label = String(g.week_label || g.weekLabel || "");
+    const m = /Week\s*(\d+)/i.exec(label);
+    if (m && !isBreak(label) && !g.is_playoff_game) nums.add(+m[1]);
+  }
+  const map = new Map<number, number>();
+  [...nums].sort((a, b) => a - b).forEach((w, i) => map.set(w, i + 1));
+  return { map, games };
+}
+
 // The BHL regular-season week in progress, from blockey.net's schedule:
 // the highest "Week N" with a game on or before today (Eastern time).
 let weekCache: { at: number; week: number; season: string } | null = null;
@@ -132,12 +148,13 @@ async function bhlWeek(): Promise<{ week: number; season: string }> {
   const newest = (a: Any, b: Any) => String(b.created_at).localeCompare(String(a.created_at));
   const s = seasons.filter((x) => !x.is_finished).sort(newest)[0] || seasons.sort(newest)[0];
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
-  const games: Any[] = (await (await fetch(API + "/games?season_id=" + encodeURIComponent(s.id))).json()).games || [];
+  const { map, games } = await weekMap(s.id);
   let week = 0;
   for (const g of games) {
-    const m = /Week\s*(\d+)/i.exec(g.week_label || g.weekLabel || "");
+    const label = String(g.week_label || g.weekLabel || "");
+    const m = /Week\s*(\d+)/i.exec(label);
     const d = String(g.game_date || g.date || "");
-    if (m && d && d <= today && !g.is_playoff_game) week = Math.max(week, +m[1]);
+    if (m && d && d <= today && !g.is_playoff_game && !isBreak(label)) week = Math.max(week, map.get(+m[1]) || 0);
   }
   weekCache = { at: Date.now(), week, season: s.name };
   return weekCache;
@@ -196,13 +213,18 @@ Deno.serve(async (req) => {
     if (!s) throw new Error("No BHL season found");
 
     const boxes: Any[] = (await get("/box-scores?season_id=" + encodeURIComponent(s.id))).box_scores || [];
+    const { map } = await weekMap(s.id);
     const games: Any[] = [];
     for (const b of boxes) {
-      const m = /Week\s*(\d+)/i.exec(b.week_label || "");
+      const label = String(b.week_label || "");
+      const m = /Week\s*(\d+)/i.exec(label);
       const gd = b.gameData;
-      if (!m || b.is_playoff_game || !gd || !Array.isArray(gd.teams)) continue;
+      if (!m || isBreak(label) || b.is_playoff_game || !gd || !Array.isArray(gd.teams)) continue;
+      const fw = map.get(+m[1]);
+      if (!fw) continue;
       games.push({
-        w: +m[1],
+        w: fw,
+        bw: +m[1],
         d: b.game_date || "",
         t: b.game_time || "",
         id: b.id,
