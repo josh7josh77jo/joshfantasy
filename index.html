@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Josh Fantasy League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--ice:#07090d;--panel:#0f131a;--ink:#e9edf3;--mute:#8b95a5;--line:#1b2230;--red:#ff5d6c;--blue:#7aa7ff;--pos:#3ddc97;--gold:#f2b705;
 --disp:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;--lab:'Barlow Condensed','Arial Narrow',sans-serif;--body:'IBM Plex Sans',system-ui,sans-serif;
@@ -208,6 +208,89 @@ button.primary{background:var(--red);border-color:var(--red);color:#fff}button.p
 .gslots{display:grid;gap:6px;min-width:240px}.gslot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.gslot b{font-weight:700}.gsl{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--mute);min-width:82px}.gslot.un .gsl{color:var(--red)}
 button.mini{padding:2px 8px;font-size:12px}
 .gposgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.gposbig{display:grid;gap:4px;padding:16px 12px;border-radius:12px;text-align:center}.gposbig b{font:700 22px var(--disp)}.gposbig small{color:var(--mute);font-weight:400}.gposbig.on{border-color:var(--red);background:color-mix(in srgb,var(--red) 10%,var(--panel))}
+
+/* ===== Theme: Fight poster (dark grey + red) ===== */
+:root,:root:not(#x){color-scheme:dark;
+  --bg:#232427;--bar:#151618;--card:#2F3135;--panel:#2F3135;--chip:#3A3C41;--fg:#F3F2EF;--ink:#F3F2EF;--dim:#8D9096;--mute:#A7A9AF;--line:#45474D;--hover:#55585F;
+  --ice:#232427;--red:#E03A3E;--red-deep:#B8242A;--blue:#E03A3E;--pos:#4CC38A;--pos-bg:#1E3329;--gold:#E03A3E;
+  --shadow:0 10px 24px -14px rgba(0,0,0,.8);
+  --disp:"Archivo","Arial Black",sans-serif;--body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;--lab:var(--body)}
+@media (prefers-color-scheme:light){:root{color-scheme:dark}}
+body{background:var(--bg);color:var(--fg);font:500 15px/1.5 var(--body)}
+/* top bar replaces the sidebar */
+.app{display:block}
+.side{position:sticky;top:0;z-index:20;height:auto;overflow:visible;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 24px;padding:calc(10px + env(safe-area-inset-top,0px)) clamp(16px,4vw,48px) 10px;background:var(--bar);border-right:0;border-bottom:3px solid var(--red)}
+.brand{padding:0;border:0}.brand::after{display:none}
+.brand img{width:36px;height:36px}
+.brand b{font:900 20px/1 var(--disp);font-stretch:125%;letter-spacing:-.01em;color:var(--red)}.brand small{color:var(--mute)}
+nav{flex-direction:row;flex-wrap:wrap;gap:2px;flex:1}
+nav a{padding:10px 12px;min-height:44px;border-radius:4px;color:var(--fg);font:600 15px/1 var(--body);background:transparent;box-shadow:none}
+nav a svg{display:none}
+nav a:hover{background:var(--card);color:var(--fg)}
+nav a[aria-current=page]{background:var(--red-deep);color:#fff;box-shadow:none}
+nav a.stat{color:var(--red);font:800 15px/1 var(--body);letter-spacing:0;text-transform:none;margin:0}
+nav a.stat:hover{background:var(--card)}
+.side #who{margin:0;padding:0;border:0;color:var(--mute);font:600 13px var(--body)}
+main{max-width:1280px;margin:0 auto;padding:clamp(24px,4vw,56px) clamp(16px,4vw,48px) 80px}
+@media (max-width:900px){.side{position:static}nav{flex-wrap:nowrap;overflow-x:auto;flex-basis:100%}nav a{white-space:nowrap;flex:none;background:transparent;border-radius:4px;padding:8px 12px;font-size:14px}nav a[aria-current=page]{background:var(--red-deep);color:#fff}}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,.tl:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+/* type */
+h2{font:900 clamp(40px,7vw,88px)/.9 var(--disp);font-stretch:125%;letter-spacing:-.035em;margin:0 0 16px}
+#view>h2:first-child{padding-bottom:0;margin-bottom:20px}#view>h2:first-child::after{display:none}
+h3{font:800 15px/1.3 var(--body);letter-spacing:0;color:var(--mute);border:0;padding:0;margin:24px 0 10px}
+.note{color:var(--mute);font-size:14px}.msg{color:var(--red)}
+.row b,.mh b,.big,.pts,.wk summary,.srow b,.onum,.gposbig b,.topbid b,td.rk,.clock b{font-family:var(--disp);font-weight:900;font-stretch:125%}
+/* boxes: square, heavy borders */
+.game,.p,.tr-row,.wk,.cell,table,.sheet,.opt,.ordl li,.lopt,.gp,button.gp.gvb,.gposbig,.topbid,.clock,.empty{border-radius:0}
+.game,.wk,table,.sheet{background:var(--card);border:3px solid var(--line)}
+.p,.tr-row,.opt,.ordl li{background:var(--card);border:2px solid var(--line)}
+.p:hover,.tr-row:hover{border-color:var(--hover);box-shadow:none}
+.empty{border:2px dashed var(--line);color:var(--mute)}
+.game .row{padding:8px 0}.game .row+.row{border-top:2px solid var(--line)}
+.row.lead{box-shadow:inset 4px 0 0 var(--red);padding-left:10px;margin-left:-16px;padding-left:12px}
+.row.lead b{color:var(--fg)}.row:not(.lead) b{color:var(--mute)}
+.bracket .game{padding:12px 16px}
+.bracket .champ{background:var(--red-deep);border-color:var(--red-deep);color:#fff;text-align:left;padding:24px}
+.bracket .champ .big{font-size:clamp(32px,4vw,48px);line-height:.95;letter-spacing:-.03em;display:grid;gap:12px;justify-items:start}
+.bracket .champ .lg.b{width:88px;height:88px}.bracket .champ .note{color:#FFE3E3}
+.wk summary{font-size:24px;letter-spacing:-.02em}.wk summary span{font:600 13px var(--body);color:var(--mute)}
+.proj{font:600 12px var(--body);color:var(--mute);border-top:2px solid var(--line)}
+/* tables */
+table{background:transparent;border:0;border-top:3px solid var(--line)}
+th{font:700 13px var(--body);letter-spacing:0;text-transform:none;color:var(--mute);border-bottom:3px solid var(--line)}
+td{border-bottom:1px solid #34363B}
+td.rk{font-size:30px;color:var(--fg)}
+tr.me{background:color-mix(in srgb,var(--red) 12%,var(--bg))}tr.me td.rk{color:var(--red)}
+tr.cut td{border-bottom:3px solid var(--red)}
+.hot{color:var(--pos)}.cold{color:var(--red)}
+.pbadge{font:800 12px var(--body);text-transform:none;letter-spacing:0;background:transparent;color:var(--red);padding:0;border-radius:0}
+.pbadge.out{background:transparent;color:var(--mute)}
+/* chips */
+.pos,.slt{font:800 12px/1.6 var(--body);border-radius:2px}
+.pos{background:var(--chip);color:var(--fg)}.pos.G{background:var(--red-deep);color:#fff}.pos.D{background:var(--chip)}
+.slt{background:#5A5D64;color:#fff}.slt.FLEX{background:#77797F}.slt.G{background:var(--red-deep)}
+/* controls */
+button,.upl{font:700 14px var(--body);border:2px solid var(--line);background:var(--card);color:var(--fg);border-radius:2px;padding:8px 14px}
+button:hover,.upl:hover{background:var(--chip);color:var(--fg);border-color:var(--hover)}
+button.primary{background:var(--red-deep);border-color:var(--red-deep);color:#fff}button.primary:hover{background:var(--red);border-color:var(--red)}
+input,select{font:500 15px var(--body);border:2px solid var(--line);border-radius:2px;background:var(--bar);color:var(--fg)}
+input:focus,select:focus{border-color:var(--red)}
+/* draft, game, matchup */
+.clock{background:var(--card);color:var(--fg);border:3px solid var(--line);border-left:8px solid var(--red);box-shadow:none}
+.clock.done{border-left-color:var(--pos)}
+.cell{background:var(--card);border:1px solid var(--line)}.cell.now{border:2px solid var(--red)}.cell.mine{background:color-mix(in srgb,var(--red) 12%,var(--card))}
+.gp,button.gp.gvb{border:2px solid var(--line);background:var(--bar);color:var(--mute)}
+.gp.on,button.gp.gvb.on{border-color:var(--red);color:var(--fg);background:color-mix(in srgb,var(--red) 12%,var(--bar))}
+button.gp.gvb:hover{border-color:var(--hover)}
+.tr-row.on,.opt:has(input:checked),.gposbig.on{border-color:var(--red);background:color-mix(in srgb,var(--red) 12%,var(--card))}
+.topbid{background:var(--bar);border:3px solid var(--line)}.topbid span{font:700 14px var(--body);letter-spacing:0;text-transform:none}.topbid b{color:var(--red)}
+.ov{background:color-mix(in srgb,#000 60%,transparent)}
+.sheet h3{font:700 14px var(--body);letter-spacing:0;text-transform:none}
+.logo-ed .lg{border-radius:0;background:var(--chip)}
+.mh{border-bottom:3px solid var(--line)}.ms,.srow{border-bottom:1px solid #34363B}
+.onum{color:var(--red)}
+.gsl{font:700 12px var(--body);text-transform:none;letter-spacing:0}
+.dpk,.cell small,.cell .no,.lopt small,.vsh,.srow small{font-family:var(--body)}
 </style>
 </head>
 <body>
