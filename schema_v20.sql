@@ -1,0 +1,4 @@
+-- Already applied to the league database on 2026-11-19 (kept here for reference).
+-- Trade deadline: trades are allowed through Week 4 and close when Week 5 starts.
+-- trade_deadline_passed() = settings.league_week > 4; send_trade and respond_trade (accept) refuse after it.
+-- Full function bodies: see the Supabase migration "schema_v20_trade_deadline".
