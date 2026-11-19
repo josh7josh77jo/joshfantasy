@@ -88,6 +88,14 @@ table{border-radius:12px}.game,.p,.tr-row,.wk{border-radius:12px}
 tr.cut td{border-bottom:2px dashed var(--gold)}.sd{color:var(--mute);font-weight:400}
 .bracket{display:grid;gap:18px;grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.bracket{grid-template-columns:1fr}}.champ{text-align:center}
 .scf{display:grid;grid-template-columns:1fr 78px 78px;gap:6px;align-items:center;margin-top:8px}.scf button{grid-column:1/-1}.scf input{min-width:0;width:100%}.sc summary{cursor:pointer;color:var(--mute);font-size:13px;margin-top:8px}
+.mu{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:16px}.vs{max-width:520px}
+.mh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0 10px;border-bottom:1px solid var(--line);margin-bottom:10px;font-weight:600}.mh b{font:900 36px/1 var(--disp)}
+.ms{display:grid;grid-template-columns:52px minmax(0,1fr) 92px 92px 48px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}.ms:last-of-type{border-bottom:0}.ms.open .n{color:var(--mute);font-weight:400}
+.ms .n{font-weight:600;min-width:0;overflow-wrap:anywhere}.ms .n small{display:block;color:var(--mute);font-weight:400;font-size:12px}.ms .pts{font-size:22px;min-width:0}
+.slt{font:800 14px var(--lab);text-align:center;border-radius:4px;padding:3px 0;background:#2f5fb8;color:#fff}.slt.FLEX{background:#6b4fb8}.slt.G{background:#d63a4a}
+.gp{display:grid;gap:3px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;font-size:12px;color:var(--mute)}.gp.on{border-color:var(--pos);color:var(--ink);background:#0f2219}
+.gp b{font:800 20px/1 var(--disp);color:inherit}.gp label{display:flex;gap:4px;align-items:center;cursor:pointer}.gp input[type=radio]{flex:none;min-width:0;width:auto;margin:0}.gp input[type=number]{min-width:0;width:100%;padding:4px 6px;font-size:14px}
+@media (max-width:520px){.ms{grid-template-columns:48px minmax(0,1fr) minmax(0,1fr) 48px;row-gap:6px}.ms .slt{grid-row:1;grid-column:1}.ms .n{grid-row:1;grid-column:2/4}.ms .pts{grid-row:1;grid-column:4}.ms .gp{grid-row:2;grid-column:1/3}.ms .gp+.gp{grid-column:3/5}}
 </style>
 </head>
 <body>
@@ -97,7 +105,8 @@ tr.cut td{border-bottom:2px dashed var(--gold)}.sd{color:var(--mute);font-weight
 <nav id="nav" aria-label="League sections">
 <a class="stat" href="#matchups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-2 4 2 4H5"/></svg><span id="wkNav">Preseason</span></a>
 <a href="#standings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span>Standings</span></a>
-<a href="#matchups"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Matchups</span></a>
+<a href="#matchups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5l6 7-6 7M20 5l-6 7 6 7"/></svg><span>Matchup</span></a>
+<a href="#schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Schedule</span></a>
 <a href="#roster"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5a3 3 0 0 1 0 6M18 14.8c1.8.7 3 2.4 3 5.2"/></svg><span>My team</span></a>
 <a href="#players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/></svg><span>Free agents</span></a>
 <a href="#draft"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M11 8.5v5M8.5 11h5"/></svg><span>Draft</span></a>
@@ -150,7 +159,7 @@ function mcard(w,a,b){const s=getSc(w,a,b)||{a:[0,0],b:[0,0]},x=Math.max(...s.a)
 const inp=(id,v,l)=>`<input id='${k}-${id}' type='number' step='0.01' value='${v}' aria-label='${esc(l)}'>`;
 const form=ADM?`<details class='sc'><summary>Enter scores</summary><div class='scf'><span>${esc(tmn(a))}</span>${inp('a1',s.a[0],tmn(a)+' game 1')}${inp('a2',s.a[1],tmn(a)+' game 2')}<span>${esc(tmn(b))}</span>${inp('b1',s.b[0],tmn(b)+' game 1')}${inp('b2',s.b[1],tmn(b)+' game 2')}<button data-sscore='${w}-${a}-${b}'>Save scores</button></div></details>`:'';
 return `<div class='game'><div class='row ${x>y?'lead':''}'><span>${lg(a)}${esc(tmn(a))}</span><b>${x.toFixed(1)}</b></div><div class='row ${y>x?'lead':''}'><span>${lg(b)}${esc(tmn(b))}</span><b>${y.toFixed(1)}</b></div><div class='proj'>Game 1: ${s.a[0].toFixed(1)} to ${s.b[0].toFixed(1)} · Game 2: ${s.a[1].toFixed(1)} to ${s.b[1].toFixed(1)}<br>${on?'Final':'Not started'}</div>${form}</div>`}
-function matchups(){const W=schedule(N),P=playoffs();
+function scheduleView(){const W=schedule(N),P=playoffs();
 const status=w=>SET.week==0?'Upcoming':w<SET.week?'Completed':w==SET.week?'Current week':'Upcoming';
 const wk=(w,title,inner)=>`<details class='wk' ${w==Math.max(1,SET.week)?'open':''}><summary>${title}<span>${status(w)} · Games ${2*w-1} and ${2*w}</span></summary><div class='board'>${inner}</div></details>`;
 let out=`<h2>Schedule</h2><p class='msg' role='status'>${esc(msg)}</p><p class='note'><b>${SET.week?'Current week: Week '+SET.week+' of 8.':'The season hasn’t started. The commissioner starts Week 1.'}</b> 12 regular-season games: 2 games each week for 6 weeks, against the same opponent. Weeks 7 and 8 are the playoffs. Each team’s higher game score counts for the week. Scoring: skaters get 10 per goal, 6 per assist, 4 per goal for, −4 per goal against, 1 per shot on goal and 0.1 per touch. Goalies get 8 per win, −6 per loss, 3 per save, −8 per goal against and 10 per shutout.</p>`;
@@ -159,6 +168,60 @@ out+=wk(7,'Week 7 · Playoff semifinals',P?P.sf.map(x=>mcard(7,x.a,x.b)).join(''
 out+=wk(8,'Week 8 · Final',P&&P.fin?mcard(8,P.fin.a,P.fin.b):`<div class='empty'>The final is set once both semifinals are scored.</div>`);
 return out}
 async function loadScores(){if(!sb)return;try{const r=await sb.from('scores').select('*');if(r.error)return;const n={};(r.data||[]).forEach(x=>n[x.week+'-'+x.team_a+'-'+x.team_b]={a:[+x.a1,+x.a2],b:[+x.b1,+x.b2]});const ch=JSON.stringify(n)!==JSON.stringify(SCORES);SCORES=n;if(ch)soft()}catch(e){}}
+let WP=[],WL=new Set(),PERR=false,NOPICK=false,ME={},MW=0,MT=-2,LCONF='';
+function oppOf(t,w){if(t<0)return -1;if(w<=6){const g=(schedule(N)[w-1]||[]).find(x=>x.includes(t));return g?(g[0]==t?g[1]:g[0]):-1}
+const P=playoffs();if(!P)return -1;const ms=w==7?P.sf:P.fin?[P.fin]:[],g=ms.find(x=>x.a==t||x.b==t);return g?(g.a==t?g.b:g.a):-1}
+const wRow=(w,t,pid)=>WP.find(r=>r.week==w&&r.team==t&&r.pid==pid);
+const isLocked=(w,t)=>WL.has(w+'-'+t);
+const editable=(w,t)=>t>=0&&t==myT()&&!isLocked(w,t)&&SET.week>0&&w<=Math.max(1,SET.week);
+function pv(w,t,pid){const e=t==myT()?ME[w+'-'+pid]:null,r=wRow(w,t,pid);if(e)return e;return r?{g1:+r.g1,g2:+r.g2,pick:+r.pick==2?2:1}:{g1:0,g2:0,pick:1}}
+const chosen=v=>v.pick==2?v.g2:v.g1;
+function starters(w,t){const saved=WP.filter(r=>r.week==w&&r.team==t&&r.start).map(r=>dPl(r.pid)).filter(Boolean);
+if(t==myT()&&!isLocked(w,t)){const m=stMap();return myIds().filter(id=>m[id]=='S').map(dPl).filter(Boolean)}return saved}
+function slots(list){const sk=list.filter(p=>!p.g),g=list.filter(p=>p.g),fx=[...sk.slice(3),...g.slice(1)].slice(0,2),pad=(a,n)=>[...a,...Array(Math.max(0,n-a.length)).fill(null)];
+return [...pad(sk.slice(0,3),3).map(p=>['SK',p]),...pad(fx,2).map(p=>['FLEX',p]),...pad(g.slice(0,1),1).map(p=>['G',p])]}
+const wTotal=(w,t)=>Math.round(starters(w,t).reduce((s,p)=>s+chosen(pv(w,t,p.id)),0)*100)/100;
+const hasSaved=(w,t)=>WP.some(r=>r.week==w&&r.team==t);
+function slotRow(w,t,[lab,p],ed){const tag=`<span class='slt ${lab}'>${lab}</span>`;
+if(!p)return `<div class='ms open'>${tag}<span class='n'>Open spot</span></div>`;
+const v=pv(w,t,p.id),k=w+'-'+p.id,f=x=>(+x).toFixed(2).replace(/\.?0+$/,'')||'0';
+const cell=g=>ed?`<div class='gp ${v.pick==g?'on':''}'><label><input type='radio' name='pk-${k}' data-mpick='${k}-${g}' ${v.pick==g?'checked':''}>Game ${g}</label><input type='number' step='0.01' data-mg='${k}-${g}' value='${g==1?v.g1:v.g2}' aria-label='${esc(p.name)} game ${g} points'></div>`
+:`<div class='gp ${v.pick==g?'on':''}'><span>Game ${g}</span><b>${f(g==1?v.g1:v.g2)}</b></div>`;
+return `<div class='ms'>${tag}<span class='n'>${esc(p.name)}<small>${esc(p.team)}</small></span>${cell(1)}${cell(2)}<span class='pts'>${f(chosen(v))}</span></div>`}
+function lineupCol(w,t){const ed=editable(w,t),lk=isLocked(w,t),list=starters(w,t),me=t==myT();
+const status=lk?`<span class='pbadge'>Locked</span>`:me?(hasSaved(w,t)?`<span class='pbadge out'>Saved, not locked</span>`:`<span class='pbadge out'>Not saved</span>`):hasSaved(w,t)?'':`<span class='pbadge out'>No lineup yet</span>`;
+const head=`<div class='mh'><span>${lg(t)}${esc(tmn(t))}${status}</span><b>${wTotal(w,t).toFixed(1)}</b></div>`;
+let body;
+if(!me&&!hasSaved(w,t))body=`<div class='empty'>${esc(tmn(t))} hasn’t saved a lineup for Week ${w} yet. It shows up here once they save it.</div>`;
+else if(me&&!list.length)body=`<div class='empty'>No starters. Set your lineup on My team.</div>`;
+else body=slots(list).map(s=>slotRow(w,t,s,ed)).join('');
+const tools=ed?`<div class='tools' style='margin-top:10px'><button data-mbest='${w}'>Use best game for everyone</button><button data-msave='${w}'>Save</button><button data-mlock='${w}'>${LCONF==w?'Press again to lock':'Lock in Week '+w}</button></div><p class='note'>Pick which game counts for each starter. Your opponent only sees what you save. After you lock, the week can’t be changed unless the commissioner unlocks it.</p>`
+:lk&&ADM?`<div class='tools' style='margin-top:10px'><button data-munlock='${w}-${t}'>Unlock (commissioner)</button></div>`:'';
+return `<div class='game mcol'>${head}${body}${tools}</div>`}
+function matchups(){const head=`<h2>Matchup</h2><p class='msg' role='status'>${esc(msg)}</p>`;
+if(PERR)return head+`<div class='empty'>The weekly points database isn’t set up yet. Run schema_v8.sql and then schema_v9.sql in Supabase, then reload.</div>`;
+const w=MW||Math.min(8,Math.max(1,SET.week)),t=MT==-2?(myT()>=0?myT():0):MT,o=oppOf(t,w);
+const wsel=`<select id='mw' aria-label='Week'>${[1,2,3,4,5,6,7,8].map(x=>`<option value='${x}' ${x==w?'selected':''}>Week ${x}${x==7?' · Semifinal':x==8?' · Final':''}</option>`).join('')}</select>`;
+const tsel=`<select id='mt' aria-label='Team'>${TEAMS.slice(0,N).map((x,i)=>`<option value='${i}' ${i==t?'selected':''}>${esc(x.n)}${i==myT()?' (you)':''}</option>`).join('')}</select>`;
+const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Only a team’s owner can change its points.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
+if(o<0)return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='empty'>${esc(tmn(t))} has no game in Week ${w}${w>=7?'. Playoff matchups are set from the standings.':'.'}</div>`;
+const a=wTotal(w,t),b=wTotal(w,o);
+return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='game vs'><div class='row ${a>b?'lead':''}'><span>${lg(t)}${esc(tmn(t))}</span><b>${a.toFixed(1)}</b></div><div class='row ${b>a?'lead':''}'><span>${lg(o)}${esc(tmn(o))}</span><b>${b.toFixed(1)}</b></div></div><div class='mu'>${lineupCol(w,t)}${lineupCol(w,o)}</div>`}
+async function loadPts(){if(!sb)return;try{const [p,l]=await Promise.all([sb.from('week_points').select('*'),sb.from('week_locks').select('*')]);
+if(p.error||l.error){if(!PERR){PERR=true;soft()}return}
+const np=p.data||[],nl=new Set((l.data||[]).map(x=>x.week+'-'+x.team));NOPICK=np.length>0&&!('pick' in np[0]);
+const ch=PERR||JSON.stringify(np)!==JSON.stringify(WP)||[...nl].join()!==[...WL].join();PERR=false;WP=np;WL=nl;if(ch)soft()}catch(e){}}
+function setME(key,f,val){const [w,pid]=key.split('-').map(Number),cur={...pv(w,myT(),pid)};cur[f]=val;ME[w+'-'+pid]=cur}
+async function savePts(w,quiet){const t=myT();if(t<0)return false;if(!sb){msg='The league database could not be reached.';render();return false}
+const rows=starters(w,t).map(p=>{const v=pv(w,t,p.id);return{pid:p.id,start:true,g1:+v.g1||0,g2:+v.g2||0,pick:v.pick}});
+if(!rows.length){msg='You have no starters to save.';render();return false}
+const r=await sb.rpc('save_points',{p_week:w,p_rows:rows});
+if(r.error){msg='Could not save: '+r.error.message;render();return false}
+Object.keys(ME).forEach(k=>{if(k.startsWith(w+'-'))delete ME[k]});if(!quiet)msg='Week '+w+' saved. Your opponent can see it now.';await loadPts();render();return true}
+async function lockPts(w){if(LCONF!=w){LCONF=w;msg='Locking is final for this week. Press again to lock.';return render()}
+LCONF='';if(!await savePts(w,true))return;const r=await sb.rpc('lock_points',{p_week:w});msg=r.error?'Could not lock: '+r.error.message:'Week '+w+' is locked in.';await loadPts();render()}
+async function unlockPts(key){const [w,t]=key.split('-').map(Number);const r=await sb.rpc('unlock_points',{p_week:w,p_team:t});msg=r.error?'Could not unlock: '+r.error.message:tmn(t)+' unlocked for Week '+w+'.';await loadPts();render()}
+function bestPts(w){const t=myT();starters(w,t).forEach(p=>{const v=pv(w,t,p.id);ME[w+'-'+p.id]={...v,pick:+v.g2>+v.g1?2:1}});msg='Picked the higher game for each starter. Press Save to keep it.';render()}
 async function saveScore(key){const [w,a,b]=key.split('-').map(Number),v=s=>{const e=document.getElementById('sc-'+key+'-'+s);return e&&e.value!==''?+e.value:0};
 const r=await sb.from('scores').upsert({week:w,team_a:a,team_b:b,a1:v('a1'),a2:v('a2'),b1:v('b1'),b2:v('b2')});
 msg=r.error?'Could not save the scores. Run schema_v7.sql, and only admins can save.':'Scores saved.';await loadScores();render()}
@@ -341,7 +404,7 @@ return head+`<div class='clock done'><b>${w?esc(un(w))+' wins!':'No winner'}</b>
 const pid=(GS.ord||[])[GS.rnd],p=dPl(pid)||{name:'Player',g:false},last=(GS.log||[]).slice(-1)[0],paused=!!GS.paused,left=paused?Math.ceil((GS.paused_left||0)/1000):Math.max(0,Math.ceil((GS.ends_at-Date.now())/1000));
 const bb=n=>`<button data-gbid='${n}' ${!paused&&me&&GS.cur_bidder!=me.id&&GS.cur_bid+n<=me.money?'':'disabled'}>+$${n}</button>`;
 return head+rules+(paused?`<div class='clock'><b>Game paused</b>The commissioner will resume it shortly.</div>`:'')+`<div class='game'><div class='note'>Player ${GS.rnd+1} of ${GS.total_rounds}</div><div class='big'>${gname(p)}</div><p class='note'>${p.g?'Goalie':'Skater'}</p><div class='row'><span>Top bid</span><b>$${GS.cur_bid}</b></div><p class='note'>${GS.cur_bidder?esc(un(GS.cur_bidder))+' is winning':'No bids yet'} · <b id='gt'>${paused?'Paused':left+'s'}</b></p>`+(me?`<div class='tools'>${bb(1)}${bb(2)}${bb(5)}<input id='gamt' type='number' min='1' max='${me.money}' placeholder='Your bid' style='max-width:120px'><button data-gbidc ${paused?'disabled':''}>Bid</button></div><p class='note'>You have $${me.money}.</p>`:`<p class='note'>${SES?'You are watching. Join the next game to bid.':'Log in and join the lobby to bid.'}</p>`)+`</div>`+(last?`<p class='note'>Last: ${gname(dPl(last.pid))} ${last.w?'sold to '+esc(un(last.w))+' for $'+last.price:'went unsold'}.</p>`:'')+`<h3>Teams so far</h3>`+table+menu(`<div class='tools'>${paused?`<button data-gresume>Resume</button>`:`<button data-gpause>Pause</button>`}<button data-gskip>Skip player</button><button data-gend>${GCONF=='end'?'Confirm end':'End bidding'}</button>${rst}</div>`+cfg+`<div class='tools'><button data-gset>Apply settings</button></div><p class='note'>Rounds, seconds and the late-bid extension apply from the next player. Starting money only changes in the lobby, so use Edit players’ money mid-game. End bidding opens the vote.</p>`+moneyEd)}
-const VIEWS={standings,matchups,roster,players,draft,trade,game,account,settings};
+const VIEWS={standings,matchups,schedule:scheduleView,roster,players,draft,trade,game,account,settings};
 function render(){const h=(location.hash||"#standings").slice(1),tm=/^team-(\d+)$/.exec(h);const k=tm?"standings":VIEWS[h]?h:"standings";
 document.querySelectorAll("#nav a").forEach(a=>a.removeAttribute("aria-current"));
 document.querySelector(`#nav a:not(.stat)[href="#${k}"]`).setAttribute("aria-current","page");
@@ -385,18 +448,22 @@ if('gend' in d){if(GCONF=='end'){GCONF='';gcall('end_game',{},'Bidding ended. Vo
 if('greset' in d){if(GCONF=='reset'){GCONF='';gcall('reset_game',{},'Game reset.')}else{GCONF='reset';msg='Press Reset game again to confirm.';render()}}
 if(d.gmoney){const el=document.querySelector(`[data-gmi="${d.gmoney}"]`);if(el)gcall('set_player_money',{p_id:d.gmoney,p_money:+el.value||0},'Money updated.')}
 if(d.sscore)saveScore(d.sscore);
+if(d.msave)savePts(+d.msave);if(d.mlock)lockPts(+d.mlock);if(d.munlock)unlockPts(d.munlock);if(d.mbest)bestPts(+d.mbest);
 if(d.gvote)gcall('cast_vote',{p_candidate:d.gvote},'Vote cast.');if('gclose' in d)gcall('close_voting',{},'Voting closed.');
 if(d.gbid)gcall('place_bid',{p_amt:GS.cur_bid+ +d.gbid},'Bid placed.');
 if('gbidc' in d)gcall('place_bid',{p_amt:+($('#gamt').value||0)},'Bid placed.')
 });
-$("#view").addEventListener("change",e=>{const d=e.target.dataset;if(e.target.id=='tt'){TR.to=+e.target.value;TR.recv=[];render()}
+$("#view").addEventListener("change",e=>{const d=e.target.dataset;
+if(e.target.id=='mw'){MW=+e.target.value;LCONF='';msg='';render()}if(e.target.id=='mt'){MT=+e.target.value;LCONF='';msg='';render()}
+if(d.mg){const a=d.mg.split('-');setME(a[0]+'-'+a[1],a[2]=='1'?'g1':'g2',e.target.value===''?0:+e.target.value);setTimeout(()=>{const f=document.activeElement,fk=f&&f.dataset&&f.dataset.mg;render();if(fk){const n=document.querySelector(`[data-mg="${fk}"]`);if(n){n.focus();n.select&&n.select()}}},0)}
+if(d.mpick){const a=d.mpick.split('-');setME(a[0]+'-'+a[1],'pick',+a[2]);render()}if(e.target.id=='tt'){TR.to=+e.target.value;TR.recv=[];render()}
 if(e.target.id=='gr')GR=+e.target.value;if(e.target.id=='gs')GSS=+e.target.value;if(e.target.id=='gn')GSN=+e.target.value;if(e.target.id=='gm')GM=+e.target.value||GM;if(e.target.id=='gpool')GPOOL=e.target.value;
 if(d.ts!=null&&e.target.type=='checkbox'){TR.send=tog(TR.send,+d.ts);render()}
 if(d.tr!=null&&e.target.type=='checkbox'){TR.recv=tog(TR.recv,+d.tr);render()}
 if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value);if(e.target.id=='hd'){HIDE=e.target.checked;try{localStorage.setItem('blueline-hide',HIDE?'1':'0')}catch(x){}render()}});
 render();
 loadAll();setInterval(loadAll,20000);loadDraft();setInterval(loadDraft,3000);
-loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},1500);
+loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadPts();setInterval(loadPts,5000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},1500);
 setInterval(()=>{if(location.hash!='#game'||!GS||GS.status!='bidding'||GS.paused)return;const left=(GS.ends_at-Date.now())/1000,el=$('#gt');if(el)el.textContent=left>0?Math.ceil(left)+'s':'Time!';
 if(left<=0&&Date.now()-GLAST>1500){GLAST=Date.now();sb.rpc('resolve_round').then(loadGame)}},250);
 </script>
