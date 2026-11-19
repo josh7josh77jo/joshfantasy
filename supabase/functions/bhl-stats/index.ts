@@ -123,6 +123,44 @@ async function buildLogos(force = false): Promise<Response> {
   return new Response(json, { headers: { ...cors, "Content-Type": "application/json" } });
 }
 
+// The BHL regular-season week in progress, from blockey.net's schedule:
+// the highest "Week N" with a game on or before today (Eastern time).
+let weekCache: { at: number; week: number; season: string } | null = null;
+async function bhlWeek(): Promise<{ week: number; season: string }> {
+  if (weekCache && Date.now() - weekCache.at < 10 * 60_000) return weekCache;
+  const seasons: Any[] = ((await (await fetch(API + "/seasons")).json()).seasons || []).filter((s: Any) => s.league_id === "BHL");
+  const newest = (a: Any, b: Any) => String(b.created_at).localeCompare(String(a.created_at));
+  const s = seasons.filter((x) => !x.is_finished).sort(newest)[0] || seasons.sort(newest)[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  const games: Any[] = (await (await fetch(API + "/games?season_id=" + encodeURIComponent(s.id))).json()).games || [];
+  let week = 0;
+  for (const g of games) {
+    const m = /Week\s*(\d+)/i.exec(g.week_label || g.weekLabel || "");
+    const d = String(g.game_date || g.date || "");
+    if (m && d && d <= today && !g.is_playoff_game) week = Math.max(week, +m[1]);
+  }
+  weekCache = { at: Date.now(), week, season: s.name };
+  return weekCache;
+}
+
+// Moves the league's current week forward to match BHL. Never goes backward,
+// never past Week 8, and does nothing before the commissioner starts Week 1.
+async function advanceWeek(): Promise<Response> {
+  const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const auth = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" };
+  const { week, season } = await bhlWeek();
+  const r = await fetch(`${base}/rest/v1/settings?id=eq.1&select=league_week`, { headers: auth });
+  const cur = +(((await r.json()) || [])[0]?.league_week ?? 0);
+  let now = cur;
+  if (cur >= 1 && week > cur) {
+    now = Math.min(8, week);
+    await fetch(`${base}/rest/v1/settings?id=eq.1`, { method: "PATCH", headers: auth, body: JSON.stringify({ league_week: now }) });
+  }
+  return new Response(JSON.stringify({ bhlWeek: week, bhlSeason: season, leagueWeek: now, advanced: now !== cur }), {
+    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+}
+
 // deno-lint-ignore no-explicit-any
 type Any = any;
 const n = (v: unknown) => (Number.isFinite(+(v as number)) ? +(v as number) : 0);
@@ -142,6 +180,7 @@ Deno.serve(async (req) => {
     const team = params.get("team");
     if (team) return await teamLogoResponse(team);
     if (params.get("build") === "1") return await buildLogos(params.get("force") === "1");
+    if (params.get("advance") === "1") return await advanceWeek();
     if (cache && cache.key === want && Date.now() - cache.at < 120_000) {
       return new Response(cache.body, { headers });
     }
