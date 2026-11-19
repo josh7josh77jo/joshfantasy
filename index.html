@@ -173,6 +173,13 @@ input:focus,select:focus{outline:none;border-color:var(--red)}
 .ms{border-bottom:1px dashed var(--line)}
 tr.cut td{border-bottom:2px dashed var(--red)}
 .tr-row.on{border-color:var(--red);background:color-mix(in srgb,var(--red) 8%,var(--card))}
+.ov{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--bg) 75%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.sheet{position:relative;width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px}
+.sheet .x{position:absolute;top:12px;right:12px;border:0;background:transparent;font-size:18px;padding:4px 8px;color:var(--mute)}
+.sheet h3{font-size:15px;font-family:var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:16px 0 6px}
+.swopt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin-bottom:6px;padding:9px 12px;border-radius:10px;font-weight:400}
+.swopt .n{flex:1;font-weight:700}.swopt .n small{display:block;color:var(--mute);font-weight:400;font-size:12.5px}.swopt .pts{font-size:20px}
+.swopt:disabled{opacity:.5}
 </style>
 </head>
 <body>
@@ -321,9 +328,25 @@ const m=stMap(),all=ids.map(dPl).filter(Boolean),SK=all.filter(p=>m[p.id]=='S'&&
 const skSlot=SK.slice(0,3),gSlot=G.slice(0,1),flex=[...SK.slice(3),...G.slice(1)];
 const tot=Math.round(all.reduce((s,p)=>s+(CUR[p.id]||0),0)*100)/100;
 const btn=(a,id,l,dis)=>`<button data-${a}='${id}' ${dis?'disabled':''}>${l}</button>`;
-const row=(p,s)=>pRow(cp(p),`<span class='acts'>${s!='S'?btn('start',p.id,'Start',!canStart(SK.length+(p.g?0:1),G.length+(p.g?1:0))):''}${s!='B'?btn('bench',p.id,'Bench',B.length>=4):''}${btn('cut',p.id,'Cut')}</span>`);
+const row=(p,s)=>pRow(cp(p),`<span class='acts'>${s!='S'?btn('start',p.id,'Start',!canStart(SK.length+(p.g?0:1),G.length+(p.g?1:0))):''}${s!='B'?btn('bench',p.id,'Bench',B.length>=4):''}${btn('swap',p.id,'Swap')}${btn('cut',p.id,'Cut')}</span>`);
 const sec=(title,list,s,empty)=>`<h3>${title}</h3>${list.length?list.map(p=>row(p,s)).join(''):`<div class='empty'>${empty}</div>`}`;
 return head+`<p class='note'>${ids.length} of ${MAX} roster spots filled · ${tot} points this season (everyone starts at 0) · Lineup: 3 skaters, 2 flex (skater or goalie) and 1 goalie.</p>`+sec(`Skaters (${skSlot.length} of 3)`,skSlot,'S','Open skater spots.')+sec(`Flex (${flex.length} of 2)`,flex,'S','Open flex spots. A skater or a goalie can fill these.')+sec(`Goalie (${gSlot.length} of 1)`,gSlot,'S','No starting goalie.')+sec(`Bench (${B.length} of 4)`,B,'B','Nobody on the bench.')+(U.length?sec('Not in the lineup',U,'U','')+`<p class='note'>These players have no open spot. Bench them if there is room, or cut them.</p>`:'')}
+let SWAP=null;
+const stLabel={S:'Starting',B:'Bench',U:'Not in lineup'};
+function swapCheck(a,b){const m=stMap(),sa=m[a],sb=m[b];if(sa==sb)return{ok:false,why:sa=='S'?'Also starting':sa=='B'?'Also on the bench':'Also not in the lineup'};
+const st=myIds().filter(id=>id!=a&&id!=b&&m[id]=='S');if(sb=='S')st.push(a);if(sa=='S')st.push(b);
+const sk=st.filter(id=>!dPl(id).g).length,g=st.length-sk;return canStart(sk,g)?{ok:true}:{ok:false,why:g>3?'Too many goalies starting':'Lineup would be over the limit'}}
+function swapMenu(){if(SWAP==null||myT()<0)return '';const a=dPl(SWAP);if(!a||!myIds().includes(a.id)){SWAP=null;return ''}
+const m=stMap(),others=myIds().filter(id=>id!=a.id).map(dPl).filter(Boolean);
+const grp=k=>{const l=others.filter(p=>m[p.id]==k);return l.length?`<h3>${stLabel[k]}</h3>`+l.map(p=>{const c=swapCheck(a.id,p.id);return `<button class='swopt' data-swapto='${p.id}' ${c.ok?'':'disabled'}><span class='pos ${p.g?'G':''}'>${p.g?'G':'SK'}</span><span class='n'>${esc(p.name)}<small>${c.ok?esc(p.team):c.why}</small></span><span class='pts'>${CUR[p.id]||0}</span></button>`}).join(''):''};
+return `<div class='ov' data-swapclose><div class='sheet' role='dialog' aria-modal='true' aria-labelledby='swh'><button class='x' data-swapclose aria-label='Close'>✕</button><p class='note' style='margin:0'>${stLabel[m[a.id]]||''}</p><h2 id='swh' style='margin:0 0 4px'>Swap ${esc(a.name)}</h2><p class='note'>Pick a player to trade spots with.</p>${['S','B','U'].map(grp).join('')||`<div class='empty'>Nobody else is on your team yet.</div>`}</div></div>`}
+function doSwap(b){const a=SWAP;b=+b;const c=swapCheck(a,b);if(!c.ok){msg=c.why;SWAP=null;return render()}
+const m=stMap();myIds().forEach(id=>{RS.st[id]=m[id]});RS.st[a]=m[b];RS.st[b]=m[a];SWAP=null;msg=dPl(a).name+' and '+dPl(b).name+' swapped spots.';saveRS();render()}
+document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;
+const sw=t.closest('[data-swap]');if(sw){SWAP=+sw.dataset.swap;render();const f=document.querySelector('.swopt:not([disabled])')||document.querySelector('.sheet .x');if(f)f.focus();return}
+const to=t.closest('[data-swapto]');if(to&&!to.disabled){doSwap(to.dataset.swapto);return}
+if(t.dataset&&'swapclose' in t.dataset){SWAP=null;render()}});
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&SWAP!=null){const id=SWAP;SWAP=null;render();const b=document.querySelector(`[data-swap="${id}"]`);if(b)b.focus()}});
 function setSt(id,s){id=+id;const p=dPl(id),m=stMap(),others=myIds().filter(y=>y!=id);
 if(s=='S'){const sk=others.filter(y=>m[y]=='S'&&!dPl(y).g).length,g=others.filter(y=>m[y]=='S'&&dPl(y).g).length;
 if(!canStart(sk+(p.g?0:1),g+(p.g?1:0))){msg='Your starting lineup is full. Bench someone first.';return render()}}
@@ -481,7 +504,7 @@ return head+`<div class='clock done'><b>${w?esc(un(w))+' wins!':'No winner'}</b>
 const pid=(GS.ord||[])[GS.rnd],p=dPl(pid)||{name:'Player',g:false},last=(GS.log||[]).slice(-1)[0],paused=!!GS.paused,left=paused?Math.ceil((GS.paused_left||0)/1000):Math.max(0,Math.ceil((GS.ends_at-Date.now())/1000));
 const bb=n=>`<button data-gbid='${n}' ${!paused&&me&&GS.cur_bidder!=me.id&&GS.cur_bid+n<=me.money?'':'disabled'}>+$${n}</button>`;
 return head+rules+(paused?`<div class='clock'><b>Game paused</b>The commissioner will resume it shortly.</div>`:'')+`<div class='game'><div class='note'>Player ${GS.rnd+1} of ${GS.total_rounds}</div><div class='big'>${gname(p)}</div><p class='note'>${p.g?'Goalie':'Skater'}</p><div class='row'><span>Top bid</span><b>$${GS.cur_bid}</b></div><p class='note'>${GS.cur_bidder?esc(un(GS.cur_bidder))+' is winning':'No bids yet'} · <b id='gt'>${paused?'Paused':left+'s'}</b></p>`+(me?`<div class='tools'>${bb(1)}${bb(2)}${bb(5)}<input id='gamt' type='number' min='1' max='${me.money}' placeholder='Your bid' style='max-width:120px'><button data-gbidc ${paused?'disabled':''}>Bid</button></div><p class='note'>You have $${me.money}.</p>`:`<p class='note'>${SES?'You are watching. Join the next game to bid.':'Log in and join the lobby to bid.'}</p>`)+`</div>`+(last?`<p class='note'>Last: ${gname(dPl(last.pid))} ${last.w?'sold to '+esc(un(last.w))+' for $'+last.price:'went unsold'}.</p>`:'')+`<h3>Teams so far</h3>`+table+menu(`<div class='tools'>${paused?`<button data-gresume>Resume</button>`:`<button data-gpause>Pause</button>`}<button data-gskip>Skip player</button><button data-gend>${GCONF=='end'?'Confirm end':'End bidding'}</button>${rst}</div>`+cfg+`<div class='tools'><button data-gset>Apply settings</button></div><p class='note'>Rounds, seconds and the late-bid extension apply from the next player. Starting money only changes in the lobby, so use Edit players’ money mid-game. End bidding opens the vote.</p>`+moneyEd)}
-const VIEWS={standings,matchups,schedule:scheduleView,roster,players,draft,trade,game,account,settings};
+const VIEWS={standings,matchups,schedule:scheduleView,roster:()=>roster()+swapMenu(),players,draft,trade,game,account,settings};
 function render(){const h=(location.hash||"#standings").slice(1),tm=/^team-(\d+)$/.exec(h);const k=tm?"standings":VIEWS[h]?h:"standings";
 document.querySelectorAll("#nav a").forEach(a=>a.removeAttribute("aria-current"));
 document.querySelector(`#nav a:not(.stat)[href="#${k}"]`).setAttribute("aria-current","page");
@@ -508,7 +531,7 @@ if("dstart" in d&&ADM){const r=await sb.from('draft_state').update({started:true
 if("undo" in d&&ADM&&DR.length){const r=await sb.from('draft_state').update({picks:DR.slice(0,-1).map(x=>x.pid),deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Last pick undone.':'Could not undo.';await loadDraft();render()}
 if("reset" in d&&ADM){if(rc){const r=await sb.from('draft_state').update({started:false,picks:[],deadline:null}).eq('id',1).select();RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=dbok(r)?'Draft reset.':'Could not reset.';await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
 });
-addEventListener("hashchange",()=>{msg="";amsg="";render()});
+addEventListener("hashchange",()=>{msg="";amsg="";SWAP=null;render()});
 $("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName();if(d.wk)saveSet('league_week',Math.min(8,Math.max(0,SET.week+ +d.wk)));
 if('tclear' in d){TR.send=[];TR.recv=[];TR.note='';render()}
 if('tsend' in d)sendTrade();
