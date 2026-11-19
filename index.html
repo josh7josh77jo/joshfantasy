@@ -267,7 +267,7 @@ const rows=D.map((x,r)=>{const t=TEAMS[x.i];return `<tr class="${x.i==myT()?'me'
 return `<h2>Standings</h2><div class="scroll"><table><thead><tr><th></th><th>Team</th><th>W-L</th><th>Points for</th><th>Points against</th><th>Streak</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">Ranked by record, then points for. The top 4 make the playoffs (weeks 7 and 8).</p>`+bracketHtml()}
 function mcard(w,a,b){const s=getSc(w,a,b)||{a:[0,0],b:[0,0]},x=Math.max(...s.a),y=Math.max(...s.b),on=played(s),k='sc-'+w+'-'+a+'-'+b;
 const inp=(id,v,l)=>`<input id='${k}-${id}' type='number' step='0.01' value='${v}' aria-label='${esc(l)}'>`;
-return `<div class='game'><div class='row ${x>y?'lead':''}'><span>${lg(a)}${esc(tmn(a))}</span><b>${x.toFixed(1)}</b></div><div class='row ${y>x?'lead':''}'><span>${lg(b)}${esc(tmn(b))}</span><b>${y.toFixed(1)}</b></div><div class='proj'>Game 1: ${s.a[0].toFixed(1)} to ${s.b[0].toFixed(1)} · Game 2: ${s.a[1].toFixed(1)} to ${s.b[1].toFixed(1)}<br>${on?'Final':'Not started'}</div></div>`}
+return `<div class='game'><div class='row ${x>y?'lead':''}'><span>${lg(a)}${esc(tmn(a))}</span><b>${x.toFixed(1)}</b></div><div class='row ${y>x?'lead':''}'><span>${lg(b)}${esc(tmn(b))}</span><b>${y.toFixed(1)}</b></div><div class='proj'>${on||WF.has(w)?'Final':SET.week==w?'In progress':w<SET.week?'Waiting for results':'Not started'}</div></div>`}
 function scheduleView(){const W=schedule(N),P=playoffs();
 const status=w=>SET.week==0?'Upcoming':w<SET.week?'Completed':w==SET.week?'Current week':'Upcoming';
 const wk=(w,title,inner)=>`<details class='wk' ${w==Math.max(1,SET.week)?'open':''}><summary>${title}<span>${status(w)} · Games ${2*w-1} and ${2*w}</span></summary><div class='board'>${inner}</div></details>`;
@@ -295,8 +295,8 @@ function slots(list){const sk=list.filter(p=>!p.g),g=list.filter(p=>p.g),fx=[...
 return [...pad(sk.slice(0,3),3).map(p=>['SK',p]),...pad(fx,2).map(p=>['FLEX',p]),...pad(g.slice(0,1),1).map(p=>['G',p])]}
 const wTotal=(w,t)=>Math.round(starters(w,t).reduce((s,p)=>s+chosen(pv(w,t,p.id)),0)*100)/100;
 
-let MGN=2,BHL=null,BHLIDX={},BHLERR=false;
-async function advanceWeek(){try{const d=await fetch(SUPA_URL+'/functions/v1/bhl-stats?advance=1').then(r=>r.json());if(d&&d.advanced){MW=0;await loadAll();msg='Week '+d.leagueWeek+' has started.';render()}}catch(e){}}
+let WF=new Set(),MGN=2,BHL=null,BHLIDX={},BHLERR=false;
+async function advanceWeek(){try{const d=await fetch(SUPA_URL+'/functions/v1/bhl-stats?advance=1').then(r=>r.json());if(d&&d.finished&&d.finished.length){await loadScores();await loadPts();render()}if(d&&d.advanced){MW=0;await loadAll();msg='Week '+d.leagueWeek+' has started.';render()}}catch(e){}}
 async function loadBHL(){try{const r=await fetch(SUPA_URL+'/functions/v1/bhl-stats');const d=await r.json();if(!r.ok||!d.games)throw 0;
 const idx={};d.games.forEach(g=>g.teams.forEach((t,i)=>{const o=g.teams[1-i];const k=g.w+'|'+t.ab;(idx[k]=idx[k]||[]).push({g,t,o})}));
 const ch=!BHL||BHL.updated!==d.updated&&JSON.stringify(BHL.games)!==JSON.stringify(d.games);BHL=d;BHLIDX=idx;BHLERR=false;if(ch)soft()}catch(e){BHLERR=true}}
@@ -355,11 +355,13 @@ if(PERR)return head+`<div class='empty'>The weekly points database isn’t set u
 const w=MW||Math.min(8,Math.max(1,SET.week)),t=MT==-2?(myT()>=0?myT():0):MT,o=oppOf(t,w);
 const wsel=`<select id='mw' aria-label='Week'>${[1,2,3,4,5,6,7,8].map(x=>`<option value='${x}' ${x==w?'selected':''}>Week ${x}${x==7?' · Semifinal':x==8?' · Final':''}</option>`).join('')}</select>`;
 const tsel=`<select id='mt' aria-label='Team'>${TEAMS.slice(0,N).map((x,i)=>`<option value='${i}' ${i==t?'selected':''}>${esc(x.n)}${i==myT()?' (you)':''}</option>`).join('')}</select>`;
-const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Lineups come straight from each team’s roster. Game points are calculated from BHL box scores on blockey.net. Click a game to see the player’s stats.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
+const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Lineups come straight from each team’s roster. When a week ends, every team’s picks lock and the higher total gets the win. Game points are calculated from BHL box scores on blockey.net. Click a game to see the player’s stats.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
 if(o<0)return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='empty'>${esc(tmn(t))} has no game in Week ${w}${w>=7?'. Playoff matchups are set from the standings.':'.'}</div>`;
 MGN=Math.max(2,...[t,o].flatMap(x=>starters(w,x).map(p=>pv(w,x,p.id).n||2)));const a=wTotal(w,t),b=wTotal(w,o);
-return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='game vs'><div class='row ${a>b?'lead':''}'><span>${lg(t)}${esc(tmn(t))}</span><b>${a.toFixed(1)}</b></div><div class='row ${b>a?'lead':''}'><span>${lg(o)}${esc(tmn(o))}</span><b>${b.toFixed(1)}</b></div></div><div class='mu'>${lineupCol(w,t)}${lineupCol(w,o)}</div>`}
-async function loadPts(){if(!sb)return;try{const [p,l,u]=await Promise.all([sb.from('week_points').select('*'),sb.from('week_locks').select('*'),sb.from('lineups').select('*')]);
+const fin=WF.has(w)?`<div class='clock done'><b>Final · ${a>b?esc(tmn(t))+' wins':b>a?esc(tmn(o))+' wins':'Tie'}</b>Week ${w} is over. Picks are locked and the result counts in the standings.</div>`:'';
+return head+`<div class='tools'>${wsel}${tsel}</div>`+info+fin+`<div class='game vs'><div class='row ${a>b?'lead':''}'><span>${lg(t)}${esc(tmn(t))}</span><b>${a.toFixed(1)}</b></div><div class='row ${b>a?'lead':''}'><span>${lg(o)}${esc(tmn(o))}</span><b>${b.toFixed(1)}</b></div></div><div class='mu'>${lineupCol(w,t)}${lineupCol(w,o)}</div>`}
+async function loadPts(){if(!sb)return;try{const [p,l,u,f]=await Promise.all([sb.from('week_points').select('*'),sb.from('week_locks').select('*'),sb.from('lineups').select('*'),sb.from('week_final').select('week')]);
+if(f&&!f.error){const nf=new Set((f.data||[]).map(x=>+x.week));if([...nf].join()!==[...WF].join()){WF=nf;soft()}}
 if(p.error||l.error){if(!PERR){PERR=true;soft()}return}
 const np=p.data||[],nl=new Set((l.data||[]).map(x=>x.week+'-'+x.team)),nu={};if(u&&!u.error)(u.data||[]).forEach(x=>nu[x.team]=(x.starters||[]).map(Number));NOPICK=np.length>0&&!('pick' in np[0]);
 const ch=PERR||JSON.stringify(np)!==JSON.stringify(WP)||[...nl].join()!==[...WL].join()||JSON.stringify(nu)!==JSON.stringify(LU);PERR=false;WP=np;WL=nl;LU=nu;if(ch)soft()}catch(e){}}

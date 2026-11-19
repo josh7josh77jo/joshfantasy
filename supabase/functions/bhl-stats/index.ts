@@ -141,22 +141,23 @@ async function weekMap(seasonId: string): Promise<{ map: Map<number, number>; ga
 
 // The BHL regular-season week in progress, from blockey.net's schedule:
 // the highest "Week N" with a game on or before today (Eastern time).
-let weekCache: { at: number; week: number; season: string } | null = null;
-async function bhlWeek(): Promise<{ week: number; season: string }> {
+let weekCache: { at: number; week: number; season: string; playoffs: boolean } | null = null;
+async function bhlWeek(): Promise<{ week: number; season: string; playoffs: boolean }> {
   if (weekCache && Date.now() - weekCache.at < 10 * 60_000) return weekCache;
   const seasons: Any[] = ((await (await fetch(API + "/seasons")).json()).seasons || []).filter((s: Any) => s.league_id === "BHL");
   const newest = (a: Any, b: Any) => String(b.created_at).localeCompare(String(a.created_at));
   const s = seasons.filter((x) => !x.is_finished).sort(newest)[0] || seasons.sort(newest)[0];
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
   const { map, games } = await weekMap(s.id);
-  let week = 0;
+  let week = 0, playoffs = !!s.is_finished;
   for (const g of games) {
     const label = String(g.week_label || g.weekLabel || "");
+    if (g.is_playoff_game && String(g.game_date || g.date || "") && String(g.game_date || g.date || "") <= today) playoffs = true;
     const m = /Week\s*(\d+)/i.exec(label);
     const d = String(g.game_date || g.date || "");
     if (m && d && d <= today && !g.is_playoff_game && !isBreak(label)) week = Math.max(week, map.get(+m[1]) || 0);
   }
-  weekCache = { at: Date.now(), week, season: s.name };
+  weekCache = { at: Date.now(), week, season: s.name, playoffs };
   return weekCache;
 }
 
@@ -165,7 +166,7 @@ async function bhlWeek(): Promise<{ week: number; season: string }> {
 async function advanceWeek(): Promise<Response> {
   const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const auth = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" };
-  const { week, season } = await bhlWeek();
+  const { week, season, playoffs } = await bhlWeek();
   const r = await fetch(`${base}/rest/v1/settings?id=eq.1&select=league_week`, { headers: auth });
   const cur = +(((await r.json()) || [])[0]?.league_week ?? 0);
   let now = cur;
@@ -173,9 +174,152 @@ async function advanceWeek(): Promise<Response> {
     now = Math.min(8, week);
     await fetch(`${base}/rest/v1/settings?id=eq.1`, { method: "PATCH", headers: auth, body: JSON.stringify({ league_week: now }) });
   }
-  return new Response(JSON.stringify({ bhlWeek: week, bhlSeason: season, leagueWeek: now, advanced: now !== cur }), {
+  let finished: number[] = [], finishError = "";
+  try { finished = await finishWeeks(week, playoffs); } catch (e) { finishError = String(e); }
+  return new Response(JSON.stringify({ bhlWeek: week, bhlSeason: season, leagueWeek: now, advanced: now !== cur, finished, finishError }), {
     headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
+}
+
+// Box scores for a BHL season, with fantasy week numbers (All-Star break skipped).
+async function loadStats(want = ""): Promise<{ s: Any; games: Any[] }> {
+  const get = async (p: string) => {
+    const r = await fetch(API + p, { headers: { accept: "application/json" } });
+    if (!r.ok) throw new Error(`${p} returned ${r.status}`);
+    return r.json();
+  };
+  const seasons: Any[] = ((await get("/seasons")).seasons || []).filter((s: Any) => s.league_id === "BHL");
+  const newest = (a: Any, b: Any) => String(b.created_at).localeCompare(String(a.created_at));
+  let s = want ? seasons.find((x) => x.id === want || x.name === want) : null;
+  if (!s) s = seasons.filter((x) => !x.is_finished).sort(newest)[0] || seasons.sort(newest)[0];
+  if (!s) throw new Error("No BHL season found");
+
+  const boxes: Any[] = (await get("/box-scores?season_id=" + encodeURIComponent(s.id))).box_scores || [];
+  const { map } = await weekMap(s.id);
+  const games: Any[] = [];
+  for (const b of boxes) {
+    const label = String(b.week_label || "");
+    const m = /Week\s*(\d+)/i.exec(label);
+    const gd = b.gameData;
+    if (!m || isBreak(label) || b.is_playoff_game || !gd || !Array.isArray(gd.teams)) continue;
+    const fw = map.get(+m[1]);
+    if (!fw) continue;
+    games.push({
+      w: fw,
+      bw: +m[1],
+      d: b.game_date || "",
+      t: b.game_time || "",
+      id: b.id,
+      teams: gd.teams.map((t: Any) => ({
+        ab: t.abbr,
+        gf: (t.periods || []).reduce((x: number, y: unknown) => x + n(y), 0),
+        players: (t.players || []).map((p: Any) => ({
+          u: p.username || p.name, g: n(p.g), a: n(p.a), sog: n(p.sog), gf: n(p.gf), ga: n(p.ga),
+          tou: n(p.tou), toi: n(p.toi), hit: n(p.hit),
+        })),
+        goalies: (t.goalies || (t.goalie ? [t.goalie] : [])).map((g: Any) => ({
+          u: g.username || g.name, sv: n(g.sv), sa: n(g.sa), ga: n(g.ga), toi: n(g.toi),
+        })),
+      })),
+    });
+  }
+  games.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
+  return { s, games };
+}
+
+// ---------- Finishing weeks ----------
+const r2 = (x: number) => Math.round(x * 100) / 100;
+function schedule(n: number): number[][][] {
+  const t = [...Array(n).keys()]; if (n % 2) t.push(-1);
+  const m = t.length, out: number[][][] = [];
+  for (let r = 0; r < 6; r++) {
+    const k = r % (m - 1), arr = [t[0], ...t.slice(1).map((_, i) => t[1 + ((i + k) % (m - 1))])], g: number[][] = [];
+    for (let i = 0; i < m / 2; i++) { const a = arr[i], b = arr[m - 1 - i]; if (a >= 0 && b >= 0) g.push([a, b]); }
+    out.push(g);
+  }
+  return out;
+}
+// Same rules as the site: the higher total wins; a tie goes to more points, then the lower team number.
+function result(rows: Any[], w: number, a: number, b: number) {
+  const r = rows.find((x) => x.week == w && x.team_a == a && x.team_b == b);
+  const q = rows.find((x) => x.week == w && x.team_a == b && x.team_b == a);
+  const sc = r ? { a: [+r.a1, +r.a2], b: [+r.b1, +r.b2] } : q ? { a: [+q.b1, +q.b2], b: [+q.a1, +q.a2] } : null;
+  if (!sc || ![...sc.a, ...sc.b].some((v) => v > 0)) return null;
+  const x = Math.max(...sc.a), y = Math.max(...sc.b);
+  let win: number;
+  if (x != y) win = x > y ? a : b; else { const sx = sc.a[0] + sc.a[1], sy = sc.b[0] + sc.b[1]; win = sx != sy ? (sx > sy ? a : b) : Math.min(a, b); }
+  return { win, x, y };
+}
+function pairsFor(w: number, n: number, rows: Any[]): number[][] {
+  if (w <= 6) return schedule(n)[w - 1] || [];
+  const t = [...Array(n).keys()].map((i) => ({ i, w: 0, pf: 0 }));
+  schedule(n).forEach((g, wi) => g.forEach(([a, b]) => {
+    const r = result(rows, wi + 1, a, b); if (!r) return;
+    t[a].pf += r.x; t[b].pf += r.y; if (r.win == a) t[a].w++; else t[b].w++;
+  }));
+  const s = t.sort((p, q) => q.w - p.w || q.pf - p.pf || p.i - q.i).slice(0, 4).map((x) => x.i);
+  if (s.length < 4) return [];
+  if (w == 7) return [[s[0], s[3]], [s[1], s[2]]];
+  const f1 = result(rows, 7, s[0], s[3]), f2 = result(rows, 7, s[1], s[2]);
+  return f1 && f2 ? [[f1.win, f2.win]] : [];
+}
+function playerGames(games: Any[], w: number, p: Any): Any[] {
+  const nm = String(p.name).toLowerCase(), key = p.goalie ? "goalies" : "players";
+  let team = "";
+  for (const g of games) if (g.w == w) for (const t of g.teams) if (t[key].some((l: Any) => String(l.u).toLowerCase() == nm)) team = t.ab;
+  team = team || p.team;
+  const list: Any[] = [];
+  for (const g of games) {
+    if (g.w != w) continue;
+    const i = g.teams.findIndex((t: Any) => t.ab == team);
+    if (i < 0) continue;
+    const t = g.teams[i], o = g.teams[1 - i], l = t[key].find((x: Any) => String(x.u).toLowerCase() == nm);
+    let pts = 0;
+    if (l && !p.goalie) pts = r2(10 * l.g + 6 * l.a + 4 * l.gf - 4 * l.ga + l.sog + 0.1 * l.tou);
+    if (l && p.goalie) {
+      const main = t.goalies.reduce((m: Any, x: Any) => (x.toi > (m ? m.toi : -1) ? x : m), null), isMain = main && main.u === l.u;
+      pts = r2((isMain ? (t.gf > o.gf ? 8 : -6) : 0) + 3 * l.sv - 8 * l.ga + (isMain && o.gf == 0 ? 10 : 0));
+    }
+    list.push(pts);
+  }
+  return list.slice(0, 4);
+}
+async function finishWeeks(bhl: number, playoffsStarted: boolean): Promise<number[]> {
+  const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const auth = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" };
+  const rest = async (path: string, init?: RequestInit) => {
+    const r = await fetch(`${base}/rest/v1/${path}`, { ...init, headers: auth });
+    if (!r.ok) throw new Error(`${path}: ${r.status} ${await r.text()}`);
+    const txt = await r.text(); return txt ? JSON.parse(txt) : null;
+  };
+  const set = (await rest("settings?id=eq.1&select=teams,league_week"))[0];
+  const n = +set.teams, lw = +set.league_week;
+  const done = new Set(((await rest("week_final?select=week")) || []).map((x: Any) => +x.week));
+  const todo = [];
+  for (let w = 1; w <= Math.min(8, lw); w++) if (!done.has(w) && (bhl > w || playoffsStarted)) todo.push(w);
+  if (!todo.length) return [];
+  const { games } = await loadStats();
+  const finished: number[] = [];
+  for (const w of todo) {
+    const rows = (await rest("scores?select=*")) || [];
+    const lineups: Any[] = await rest("rpc/week_lineups", { method: "POST", body: JSON.stringify({ p_week: w }) });
+    const totals: Record<number, number> = {};
+    const points = lineups.map((L: Any) => {
+      let total = 0;
+      const out = (L.starters || []).map((p: Any) => {
+        const G = playerGames(games, w, p);
+        let pick = +p.pick || 1; if (pick > Math.max(1, G.length)) pick = 1;
+        total += G[pick - 1] || 0;
+        return { pid: p.pid, g1: G[0] || 0, g2: G[1] || 0, g3: G[2] || 0, g4: G[3] || 0, pick };
+      });
+      totals[L.team] = r2(total);
+      return { team: L.team, rows: out };
+    });
+    const results = pairsFor(w, n, rows).map(([a, b]) => ({ a, b, ta: totals[a] || 0, tb: totals[b] || 0 }));
+    await rest("rpc/finalize_week", { method: "POST", body: JSON.stringify({ p_week: w, p_points: points, p_results: results }) });
+    finished.push(w);
+  }
+  return finished;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -201,47 +345,7 @@ Deno.serve(async (req) => {
     if (cache && cache.key === want && Date.now() - cache.at < 120_000) {
       return new Response(cache.body, { headers });
     }
-    const get = async (p: string) => {
-      const r = await fetch(API + p, { headers: { accept: "application/json" } });
-      if (!r.ok) throw new Error(`${p} returned ${r.status}`);
-      return r.json();
-    };
-    const seasons: Any[] = ((await get("/seasons")).seasons || []).filter((s: Any) => s.league_id === "BHL");
-    const newest = (a: Any, b: Any) => String(b.created_at).localeCompare(String(a.created_at));
-    let s = want ? seasons.find((x) => x.id === want || x.name === want) : null;
-    if (!s) s = seasons.filter((x) => !x.is_finished).sort(newest)[0] || seasons.sort(newest)[0];
-    if (!s) throw new Error("No BHL season found");
-
-    const boxes: Any[] = (await get("/box-scores?season_id=" + encodeURIComponent(s.id))).box_scores || [];
-    const { map } = await weekMap(s.id);
-    const games: Any[] = [];
-    for (const b of boxes) {
-      const label = String(b.week_label || "");
-      const m = /Week\s*(\d+)/i.exec(label);
-      const gd = b.gameData;
-      if (!m || isBreak(label) || b.is_playoff_game || !gd || !Array.isArray(gd.teams)) continue;
-      const fw = map.get(+m[1]);
-      if (!fw) continue;
-      games.push({
-        w: fw,
-        bw: +m[1],
-        d: b.game_date || "",
-        t: b.game_time || "",
-        id: b.id,
-        teams: gd.teams.map((t: Any) => ({
-          ab: t.abbr,
-          gf: (t.periods || []).reduce((x: number, y: unknown) => x + n(y), 0),
-          players: (t.players || []).map((p: Any) => ({
-            u: p.username || p.name, g: n(p.g), a: n(p.a), sog: n(p.sog), gf: n(p.gf), ga: n(p.ga),
-            tou: n(p.tou), toi: n(p.toi), hit: n(p.hit),
-          })),
-          goalies: (t.goalies || (t.goalie ? [t.goalie] : [])).map((g: Any) => ({
-            u: g.username || g.name, sv: n(g.sv), sa: n(g.sa), ga: n(g.ga), toi: n(g.toi),
-          })),
-        })),
-      });
-    }
-    games.sort((a, b) => (a.d + a.t).localeCompare(b.d + b.t));
+    const { s, games } = await loadStats(want);
     const body = JSON.stringify({ season: { id: s.id, name: s.name }, updated: new Date().toISOString(), games });
     cache = { at: Date.now(), key: want, body };
     return new Response(body, { headers });
