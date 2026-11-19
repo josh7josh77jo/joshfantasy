@@ -438,7 +438,12 @@ let DSTART=false,DERR=false,DEAD=0,APF=-1,HIDE=true;
 try{HIDE=localStorage.getItem('blueline-hide')!=='0'}catch(e){}
 const CUR={};
 let TRADES=[],TERR=false,TR={to:-1,send:[],recv:[],note:'',fs:'',fr:''},GS=null,GP=[],GERR=false,GR=8,GSS=20,GM=20,GSN=20,GPOOL='all',GINIT=false,GCONF='',GV=[],GLAST=0;
-function teamOf(pid){const i=DR.findIndex(d=>d.pid==pid);if(i<0)return -1;let o=slot(i);TRADES.forEach(t=>{if(t.status!='accepted')return;if((t.send||[]).includes(pid))o=t.to_team;else if((t.receive||[]).includes(pid))o=t.from_team});return o}
+const draftOwner=pid=>{const i=DR.findIndex(d=>d.pid==pid);return i<0?-1:slot(i)};
+let _own={k:'',m:{}};
+function tradeMoves(){const k=DR.length+'|'+DSNAKE+'|'+DORD+'|'+TRADES.map(t=>t.id+t.status).join();if(_own.k===k)return _own.m;const m={};
+TRADES.filter(t=>t.status=='accepted').sort((a,b)=>a.id-b.id).forEach(t=>{const own=x=>x in m?m[x]:draftOwner(x),S=(t.send||[]).map(Number),R=(t.receive||[]).map(Number);
+if(S.every(x=>own(x)==t.from_team)&&R.every(x=>own(x)==t.to_team)){S.forEach(x=>m[x]=t.to_team);R.forEach(x=>m[x]=t.from_team)}});_own={k,m};return m}
+function teamOf(pid){const o=draftOwner(pid);if(o<0)return -1;const m=tradeMoves();return pid in m?m[pid]:o}
 const teamIds=t=>DR.map(d=>d.pid).filter(pid=>teamOf(pid)==t);
 const cp=p=>({...p,pts:CUR[p.id]||0,team:'Last season: '+p.pts+' pts · '+p.team});
 const owned=t=>Object.values(ASSIGN).some(x=>+x===t);
