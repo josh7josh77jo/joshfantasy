@@ -10,3 +10,7 @@ language sql stable as $$ select (extract(epoch from clock_timestamp()) * 1000):
 -- resolve_round / skip_round / start_game: set gap_until = now + 3 s and ends_at = gap + round_ms.
 -- resume_game / open_lobby: clear gap_until. game_settings / open_lobby: snipe_ms clamped to 5-60 s.
 -- Full function bodies: see the Supabase migration "schema_v12_game_clock".
+
+-- 2026-11-19 (migration "schema_v18_game_positions"): the break between players is now 5 seconds,
+-- and game_players.pos (jsonb, player id -> W/C/D/G) stores the position each winner picks
+-- through set_game_pos(p_pid, p_pos).
