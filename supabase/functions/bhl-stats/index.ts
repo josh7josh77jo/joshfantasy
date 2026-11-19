@@ -9,6 +9,7 @@ const cors = {
 };
 let cache: { at: number; key: string; body: string } | null = null;
 
+const HIDE = new Set(["chicago dawgs", "halifax highlanders"]);
 type Team = { id: string; name: string; abbr: string; season: string; seasonName: string; order: number; logo: string };
 let teamCache: { at: number; teams: Team[]; list: Omit<Team, "logo">[] } | null = null;
 
@@ -28,12 +29,13 @@ async function loadTeams() {
       season: String(t.season_id || ""), seasonName: String(sname.get(t.season_id) || ""), order: rank.get(t.season_id) ?? 999, logo: t.logo_url,
     }))
     .sort((a, b) => a.order - b.order);
-  // One entry per distinct image, keeping the newest season that used it.
+  // One entry per team name (its newest logo). Teams whose logo on blockey.net
+  // is known to be wrong are left out of the picker.
   const seen = new Set<string>();
   const list: Omit<Team, "logo">[] = [];
   for (const t of teams) {
-    const key = t.logo.length + ":" + t.logo.slice(-64);
-    if (seen.has(key)) continue;
+    const key = t.name.trim().toLowerCase();
+    if (!key || seen.has(key) || HIDE.has(key)) continue;
     seen.add(key);
     const { logo: _l, ...rest } = t;
     list.push(rest);
@@ -67,14 +69,14 @@ async function teamLogoResponse(id: string): Promise<Response> {
 // Saves every distinct BHL logo into the public "bhl-logos" storage folder,
 // plus list.json, so the site can load them quickly from the CDN.
 const BUCKET = "bhl-logos";
-async function buildLogos(): Promise<Response> {
+async function buildLogos(force = false): Promise<Response> {
   const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const pub = `${base}/storage/v1/object/public/${BUCKET}/list.json`;
   try {
     const old = await fetch(pub + "?t=" + Date.now());
     if (old.ok) {
       const j = await old.json();
-      if (Date.now() - Date.parse(j.builtAt) < 10 * 60_000) return new Response(JSON.stringify(j), { headers: { ...cors, "Content-Type": "application/json" } });
+      if (Date.now() - Date.parse(j.builtAt) < (force ? 60_000 : 10 * 60_000)) return new Response(JSON.stringify(j), { headers: { ...cors, "Content-Type": "application/json" } });
     }
   } catch { /* rebuild */ }
   const auth = { Authorization: `Bearer ${key}`, apikey: key };
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
     }
     const team = params.get("team");
     if (team) return await teamLogoResponse(team);
-    if (params.get("build") === "1") return await buildLogos();
+    if (params.get("build") === "1") return await buildLogos(params.get("force") === "1");
     if (cache && cache.key === want && Date.now() - cache.at < 120_000) {
       return new Response(cache.body, { headers });
     }
