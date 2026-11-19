@@ -162,7 +162,7 @@ async function bhlWeek(): Promise<{ week: number; season: string; playoffs: bool
 }
 
 // Moves the league's current week forward to match BHL. Never goes backward,
-// never past Week 8, and does nothing before the commissioner starts Week 1.
+// never past Week 7 (the final), and does nothing before the commissioner starts Week 1.
 async function advanceWeek(): Promise<Response> {
   const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const auth = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" };
@@ -170,8 +170,8 @@ async function advanceWeek(): Promise<Response> {
   const r = await fetch(`${base}/rest/v1/settings?id=eq.1&select=league_week`, { headers: auth });
   const cur = +(((await r.json()) || [])[0]?.league_week ?? 0);
   let now = cur;
-  if (cur >= 1 && week > cur) {
-    now = Math.min(8, week);
+  if (cur >= 1 && cur < 7 && week > cur) {
+    now = Math.min(7, week);
     await fetch(`${base}/rest/v1/settings?id=eq.1`, { method: "PATCH", headers: auth, body: JSON.stringify({ league_week: now }) });
   }
   let finished: number[] = [], finishError = "";
@@ -232,7 +232,7 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 function schedule(n: number): number[][][] {
   const t = [...Array(n).keys()]; if (n % 2) t.push(-1);
   const m = t.length, out: number[][][] = [];
-  for (let r = 0; r < 6; r++) {
+  for (let r = 0; r < 5; r++) {
     const k = r % (m - 1), arr = [t[0], ...t.slice(1).map((_, i) => t[1 + ((i + k) % (m - 1))])], g: number[][] = [];
     for (let i = 0; i < m / 2; i++) { const a = arr[i], b = arr[m - 1 - i]; if (a >= 0 && b >= 0) g.push([a, b]); }
     out.push(g);
@@ -251,7 +251,7 @@ function result(rows: Any[], w: number, a: number, b: number) {
   return { win, x, y };
 }
 function pairsFor(w: number, n: number, rows: Any[]): number[][] {
-  if (w <= 6) return schedule(n)[w - 1] || [];
+  if (w <= 5) return schedule(n)[w - 1] || [];
   const t = [...Array(n).keys()].map((i) => ({ i, w: 0, pf: 0 }));
   schedule(n).forEach((g, wi) => g.forEach(([a, b]) => {
     const r = result(rows, wi + 1, a, b); if (!r) return;
@@ -259,8 +259,9 @@ function pairsFor(w: number, n: number, rows: Any[]): number[][] {
   }));
   const s = t.sort((p, q) => q.w - p.w || q.pf - p.pf || p.i - q.i).slice(0, 4).map((x) => x.i);
   if (s.length < 4) return [];
-  if (w == 7) return [[s[0], s[3]], [s[1], s[2]]];
-  const f1 = result(rows, 7, s[0], s[3]), f2 = result(rows, 7, s[1], s[2]);
+  if (w == 6) return [[s[0], s[3]], [s[1], s[2]]];
+  if (w != 7) return [];
+  const f1 = result(rows, 6, s[0], s[3]), f2 = result(rows, 6, s[1], s[2]);
   return f1 && f2 ? [[f1.win, f2.win]] : [];
 }
 function playerGames(games: Any[], w: number, p: Any): Any[] {
@@ -296,7 +297,7 @@ async function finishWeeks(bhl: number, playoffsStarted: boolean): Promise<numbe
   const n = +set.teams, lw = +set.league_week;
   const done = new Set(((await rest("week_final?select=week")) || []).map((x: Any) => +x.week));
   const todo = [];
-  for (let w = 1; w <= Math.min(8, lw); w++) if (!done.has(w) && (bhl > w || playoffsStarted)) todo.push(w);
+  for (let w = 1; w <= Math.min(7, lw); w++) if (!done.has(w) && (bhl > w || playoffsStarted)) todo.push(w);
   if (!todo.length) return [];
   const { games } = await loadStats();
   const finished: number[] = [];
