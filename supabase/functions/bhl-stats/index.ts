@@ -29,14 +29,16 @@ async function loadTeams() {
       season: String(t.season_id || ""), seasonName: String(sname.get(t.season_id) || ""), order: rank.get(t.season_id) ?? 999, logo: t.logo_url,
     }))
     .sort((a, b) => a.order - b.order);
-  // One entry per team name (its newest logo). Teams whose logo on blockey.net
+  // One entry per team name and per distinct image (newest first). Teams whose logo on blockey.net
   // is known to be wrong are left out of the picker.
-  const seen = new Set<string>();
+  const seen = new Set<string>(), seenImg = new Set<string>();
   const list: Omit<Team, "logo">[] = [];
   for (const t of teams) {
     const key = t.name.trim().toLowerCase();
-    if (!key || seen.has(key) || HIDE.has(key)) continue;
+    const img = t.logo.length + ":" + t.logo.slice(100, 300) + t.logo.slice(-200);
+    if (!key || seen.has(key) || seenImg.has(img) || HIDE.has(key)) continue;
     seen.add(key);
+    seenImg.add(img);
     const { logo: _l, ...rest } = t;
     list.push(rest);
   }
