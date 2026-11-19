@@ -167,7 +167,7 @@ out+=wk(7,'Week 7 · Playoff semifinals',P?P.sf.map(x=>mcard(7,x.a,x.b)).join(''
 out+=wk(8,'Week 8 · Final',P&&P.fin?mcard(8,P.fin.a,P.fin.b):`<div class='empty'>The final is set once both semifinals are scored.</div>`);
 return out}
 async function loadScores(){if(!sb)return;try{const r=await sb.from('scores').select('*');if(r.error)return;const n={};(r.data||[]).forEach(x=>n[x.week+'-'+x.team_a+'-'+x.team_b]={a:[+x.a1,+x.a2],b:[+x.b1,+x.b2]});const ch=JSON.stringify(n)!==JSON.stringify(SCORES);SCORES=n;if(ch)soft()}catch(e){}}
-let WP=[],WL=new Set(),PERR=false,NOPICK=false,ME={},MW=0,MT=-2,LCONF='';
+let WP=[],WL=new Set(),PERR=false,NOPICK=false,ME={},MW=0,MT=-2,LCONF='',LU={},LSYNC='',SAVT={},SAVST={};
 function oppOf(t,w){if(t<0)return -1;if(w<=6){const g=(schedule(N)[w-1]||[]).find(x=>x.includes(t));return g?(g[0]==t?g[1]:g[0]):-1}
 const P=playoffs();if(!P)return -1;const ms=w==7?P.sf:P.fin?[P.fin]:[],g=ms.find(x=>x.a==t||x.b==t);return g?(g.a==t?g.b:g.a):-1}
 const wRow=(w,t,pid)=>WP.find(r=>r.week==w&&r.team==t&&r.pid==pid);
@@ -175,26 +175,26 @@ const isLocked=(w,t)=>WL.has(w+'-'+t);
 const editable=(w,t)=>t>=0&&t==myT()&&!isLocked(w,t)&&SET.week>0&&w<=Math.max(1,SET.week);
 function pv(w,t,pid){const e=t==myT()?ME[w+'-'+pid]:null,r=wRow(w,t,pid);if(e)return e;return r?{g1:+r.g1,g2:+r.g2,pick:+r.pick==2?2:1}:{g1:0,g2:0,pick:1}}
 const chosen=v=>v.pick==2?v.g2:v.g1;
-function starters(w,t){const saved=WP.filter(r=>r.week==w&&r.team==t&&r.start).map(r=>dPl(r.pid)).filter(Boolean);
-if(t==myT()&&!isLocked(w,t)){const m=stMap();return myIds().filter(id=>m[id]=='S').map(dPl).filter(Boolean)}return saved}
+function autoLineup(ids){const c={sk:0,g:0},out=[],rest=ids.map(dPl).filter(Boolean).sort((a,b)=>b.pts-a.pts),g1=rest.find(p=>p.g);if(g1){rest.splice(rest.indexOf(g1),1);rest.unshift(g1)}
+rest.forEach(p=>{const s2=c.sk+(p.g?0:1),g2=c.g+(p.g?1:0);if(canStart(s2,g2)){c.sk=s2;c.g=g2;out.push(p)}});return out}
+const myStarters=()=>{const m=stMap();return myIds().filter(id=>m[id]=='S').map(dPl).filter(Boolean)};
+function starters(w,t){if(isLocked(w,t))return WP.filter(r=>r.week==w&&r.team==t&&r.start).map(r=>dPl(r.pid)).filter(Boolean);
+if(t==myT())return myStarters();if(LU[t])return LU[t].map(dPl).filter(Boolean);return autoLineup(teamIds(t))}
 function slots(list){const sk=list.filter(p=>!p.g),g=list.filter(p=>p.g),fx=[...sk.slice(3),...g.slice(1)].slice(0,2),pad=(a,n)=>[...a,...Array(Math.max(0,n-a.length)).fill(null)];
 return [...pad(sk.slice(0,3),3).map(p=>['SK',p]),...pad(fx,2).map(p=>['FLEX',p]),...pad(g.slice(0,1),1).map(p=>['G',p])]}
 const wTotal=(w,t)=>Math.round(starters(w,t).reduce((s,p)=>s+chosen(pv(w,t,p.id)),0)*100)/100;
-const hasSaved=(w,t)=>WP.some(r=>r.week==w&&r.team==t);
+
 function slotRow(w,t,[lab,p],ed){const tag=`<span class='slt ${lab}'>${lab}</span>`;
 if(!p)return `<div class='ms open'>${tag}<span class='n'>Open spot</span></div>`;
 const v=pv(w,t,p.id),k=w+'-'+p.id,f=x=>(+x).toFixed(2).replace(/\.?0+$/,'')||'0';
 const cell=g=>ed?`<div class='gp ${v.pick==g?'on':''}'><label><input type='radio' name='pk-${k}' data-mpick='${k}-${g}' ${v.pick==g?'checked':''}>Game ${g}</label><input type='number' step='0.01' data-mg='${k}-${g}' value='${g==1?v.g1:v.g2}' aria-label='${esc(p.name)} game ${g} points'></div>`
 :`<div class='gp ${v.pick==g?'on':''}'><span>Game ${g}</span><b>${f(g==1?v.g1:v.g2)}</b></div>`;
 return `<div class='ms'>${tag}<span class='n'>${esc(p.name)}<small>${esc(p.team)}</small></span>${cell(1)}${cell(2)}<span class='pts'>${f(chosen(v))}</span></div>`}
-function lineupCol(w,t){const ed=editable(w,t),lk=isLocked(w,t),list=starters(w,t),me=t==myT();
-const status=lk?`<span class='pbadge'>Locked</span>`:me?(hasSaved(w,t)?`<span class='pbadge out'>Saved, not locked</span>`:`<span class='pbadge out'>Not saved</span>`):hasSaved(w,t)?'':`<span class='pbadge out'>No lineup yet</span>`;
+function lineupCol(w,t){const ed=editable(w,t),lk=isLocked(w,t),list=starters(w,t),me=t==myT(),st=SAVST[w];
+const status=lk?`<span class='pbadge'>Locked</span>`:me&&st?`<span class='pbadge out'>${st}</span>`:'';
 const head=`<div class='mh'><span>${lg(t)}${esc(tmn(t))}${status}</span><b>${wTotal(w,t).toFixed(1)}</b></div>`;
-let body;
-if(!me&&!hasSaved(w,t))body=`<div class='empty'>${esc(tmn(t))} hasn’t saved a lineup for Week ${w} yet. It shows up here once they save it.</div>`;
-else if(me&&!list.length)body=`<div class='empty'>No starters. Set your lineup on My team.</div>`;
-else body=slots(list).map(s=>slotRow(w,t,s,ed)).join('');
-const tools=ed?`<div class='tools' style='margin-top:10px'><button data-mbest='${w}'>Use best game for everyone</button><button data-msave='${w}'>Save</button><button data-mlock='${w}'>${LCONF==w?'Press again to lock':'Lock in Week '+w}</button></div><p class='note'>Pick which game counts for each starter. Your opponent only sees what you save. After you lock, the week can’t be changed unless the commissioner unlocks it.</p>`
+const body=list.length?slots(list).map(s=>slotRow(w,t,s,ed)).join(''):`<div class='empty'>${me?'No starters. Set your lineup on My team.':esc(tmn(t))+' has no players yet.'}</div>`;
+const tools=ed?`<div class='tools' style='margin-top:10px'><button data-mbest='${w}'>Use best game for everyone</button><button data-mlock='${w}'>${LCONF==w?'Press again to lock':'Lock in Week '+w}</button></div><p class='note'>Your lineup and points save automatically and everyone can see them. Pick which game counts for each starter. After you lock, the week can’t be changed unless the commissioner unlocks it.</p>`
 :lk&&ADM?`<div class='tools' style='margin-top:10px'><button data-munlock='${w}-${t}'>Unlock (commissioner)</button></div>`:'';
 return `<div class='game mcol'>${head}${body}${tools}</div>`}
 function matchups(){const head=`<h2>Matchup</h2><p class='msg' role='status'>${esc(msg)}</p>`;
@@ -202,25 +202,26 @@ if(PERR)return head+`<div class='empty'>The weekly points database isn’t set u
 const w=MW||Math.min(8,Math.max(1,SET.week)),t=MT==-2?(myT()>=0?myT():0):MT,o=oppOf(t,w);
 const wsel=`<select id='mw' aria-label='Week'>${[1,2,3,4,5,6,7,8].map(x=>`<option value='${x}' ${x==w?'selected':''}>Week ${x}${x==7?' · Semifinal':x==8?' · Final':''}</option>`).join('')}</select>`;
 const tsel=`<select id='mt' aria-label='Team'>${TEAMS.slice(0,N).map((x,i)=>`<option value='${i}' ${i==t?'selected':''}>${esc(x.n)}${i==myT()?' (you)':''}</option>`).join('')}</select>`;
-const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Only a team’s owner can change its points.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
+const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Lineups come straight from each team’s roster. Only a team’s owner can change its points.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
 if(o<0)return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='empty'>${esc(tmn(t))} has no game in Week ${w}${w>=7?'. Playoff matchups are set from the standings.':'.'}</div>`;
 const a=wTotal(w,t),b=wTotal(w,o);
 return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='game vs'><div class='row ${a>b?'lead':''}'><span>${lg(t)}${esc(tmn(t))}</span><b>${a.toFixed(1)}</b></div><div class='row ${b>a?'lead':''}'><span>${lg(o)}${esc(tmn(o))}</span><b>${b.toFixed(1)}</b></div></div><div class='mu'>${lineupCol(w,t)}${lineupCol(w,o)}</div>`}
-async function loadPts(){if(!sb)return;try{const [p,l]=await Promise.all([sb.from('week_points').select('*'),sb.from('week_locks').select('*')]);
+async function loadPts(){if(!sb)return;try{const [p,l,u]=await Promise.all([sb.from('week_points').select('*'),sb.from('week_locks').select('*'),sb.from('lineups').select('*')]);
 if(p.error||l.error){if(!PERR){PERR=true;soft()}return}
-const np=p.data||[],nl=new Set((l.data||[]).map(x=>x.week+'-'+x.team));NOPICK=np.length>0&&!('pick' in np[0]);
-const ch=PERR||JSON.stringify(np)!==JSON.stringify(WP)||[...nl].join()!==[...WL].join();PERR=false;WP=np;WL=nl;if(ch)soft()}catch(e){}}
+const np=p.data||[],nl=new Set((l.data||[]).map(x=>x.week+'-'+x.team)),nu={};if(u&&!u.error)(u.data||[]).forEach(x=>nu[x.team]=(x.starters||[]).map(Number));NOPICK=np.length>0&&!('pick' in np[0]);
+const ch=PERR||JSON.stringify(np)!==JSON.stringify(WP)||[...nl].join()!==[...WL].join()||JSON.stringify(nu)!==JSON.stringify(LU);PERR=false;WP=np;WL=nl;LU=nu;if(ch)soft()}catch(e){}}
+function syncLineup(){const t=myT();if(t<0||!sb||!SES||!DR.length)return;const ids=myStarters().map(p=>p.id).sort((a,b)=>a-b);if(!ids.length)return;const k=t+':'+ids.join();if(k===LSYNC)return;LSYNC=k;
+sb.rpc('set_lineup',{p_starters:ids}).then(r=>{if(!r.error)loadPts();const w=Math.min(8,Math.max(1,SET.week));if(SET.week&&editable(w,t))autoSave(w)})}
+function autoSave(w){clearTimeout(SAVT[w]);SAVST[w]='Saving…';SAVT[w]=setTimeout(async()=>{const ok=await savePts(w,true);SAVST[w]=ok?'Saved':'Not saved';soft()},700)}
 function setME(key,f,val){const [w,pid]=key.split('-').map(Number),cur={...pv(w,myT(),pid)};cur[f]=val;ME[w+'-'+pid]=cur}
-async function savePts(w,quiet){const t=myT();if(t<0)return false;if(!sb){msg='The league database could not be reached.';render();return false}
+async function savePts(w,quiet){const t=myT();if(t<0||!sb)return false;
 const rows=starters(w,t).map(p=>{const v=pv(w,t,p.id);return{pid:p.id,start:true,g1:+v.g1||0,g2:+v.g2||0,pick:v.pick}});
-if(!rows.length){msg='You have no starters to save.';render();return false}
-const r=await sb.rpc('save_points',{p_week:w,p_rows:rows});
-if(r.error){msg='Could not save: '+r.error.message;render();return false}
-Object.keys(ME).forEach(k=>{if(k.startsWith(w+'-'))delete ME[k]});if(!quiet)msg='Week '+w+' saved. Your opponent can see it now.';await loadPts();render();return true}
+if(!rows.length)return false;const r=await sb.rpc('save_points',{p_week:w,p_rows:rows});
+if(r.error){msg='Could not save: '+r.error.message;soft();return false}await loadPts();return true}
 async function lockPts(w){if(LCONF!=w){LCONF=w;msg='Locking is final for this week. Press again to lock.';return render()}
-LCONF='';if(!await savePts(w,true))return;const r=await sb.rpc('lock_points',{p_week:w});msg=r.error?'Could not lock: '+r.error.message:'Week '+w+' is locked in.';await loadPts();render()}
+LCONF='';clearTimeout(SAVT[w]);if(!await savePts(w,true)){render();return}Object.keys(ME).forEach(k=>{if(k.startsWith(w+'-'))delete ME[k]});const r=await sb.rpc('lock_points',{p_week:w});msg=r.error?'Could not lock: '+r.error.message:'Week '+w+' is locked in.';await loadPts();render()}
 async function unlockPts(key){const [w,t]=key.split('-').map(Number);const r=await sb.rpc('unlock_points',{p_week:w,p_team:t});msg=r.error?'Could not unlock: '+r.error.message:tmn(t)+' unlocked for Week '+w+'.';await loadPts();render()}
-function bestPts(w){const t=myT();starters(w,t).forEach(p=>{const v=pv(w,t,p.id);ME[w+'-'+p.id]={...v,pick:+v.g2>+v.g1?2:1}});msg='Picked the higher game for each starter. Press Save to keep it.';render()}
+function bestPts(w){const t=myT();starters(w,t).forEach(p=>{const v=pv(w,t,p.id);ME[w+'-'+p.id]={...v,pick:+v.g2>+v.g1?2:1}});msg='Picked the higher game for each starter.';autoSave(w);render()}
 async function saveScore(key){const [w,a,b]=key.split('-').map(Number),v=s=>{const e=document.getElementById('sc-'+key+'-'+s);return e&&e.value!==''?+e.value:0};
 const r=await sb.from('scores').upsert({week:w,team_a:a,team_b:b,a1:v('a1'),a2:v('a2'),b1:v('b1'),b2:v('b2')});
 msg=r.error?'Could not save the scores. Run schema_v7.sql, and only admins can save.':'Scores saved.';await loadScores();render()}
@@ -411,7 +412,7 @@ $("#view").innerHTML=tm?teamView(+tm[1]):VIEWS[k]();who();
 const qi=$("#q");if(qi){qi.oninput=e=>{q=e.target.value;const pos=e.target.selectionStart;render();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)}}
 const ps=$("#pf");if(ps)ps.onchange=e=>{pf=e.target.value;render()}
 const di=$("#dq");if(di){di.oninput=e=>{dq=e.target.value;const pos=e.target.selectionStart;render();const n=$("#dq");n.focus();n.setSelectionRange(pos,pos)}}
-const dp=$("#dpf");if(dp)dp.onchange=e=>{dpf=e.target.value;render()};bindTrade()}
+const dp=$("#dpf");if(dp)dp.onchange=e=>{dpf=e.target.value;render()};bindTrade();syncLineup()}
 async function loadDraft(){if(!sb)return;try{const r=await sb.from('draft_state').select('*').eq('id',1).maybeSingle();
 if(r.error){if(!DERR){DERR=true;soft()}return}
 const dd=r.data||{},np=Array.isArray(dd.picks)?dd.picks:[],ns=!!dd.started,nd=+dd.deadline||0;
@@ -447,15 +448,15 @@ if('gend' in d){if(GCONF=='end'){GCONF='';gcall('end_game',{},'Bidding ended. Vo
 if('greset' in d){if(GCONF=='reset'){GCONF='';gcall('reset_game',{},'Game reset.')}else{GCONF='reset';msg='Press Reset game again to confirm.';render()}}
 if(d.gmoney){const el=document.querySelector(`[data-gmi="${d.gmoney}"]`);if(el)gcall('set_player_money',{p_id:d.gmoney,p_money:+el.value||0},'Money updated.')}
 if(d.sscore)saveScore(d.sscore);
-if(d.msave)savePts(+d.msave);if(d.mlock)lockPts(+d.mlock);if(d.munlock)unlockPts(d.munlock);if(d.mbest)bestPts(+d.mbest);
+if(d.mlock)lockPts(+d.mlock);if(d.munlock)unlockPts(d.munlock);if(d.mbest)bestPts(+d.mbest);
 if(d.gvote)gcall('cast_vote',{p_candidate:d.gvote},'Vote cast.');if('gclose' in d)gcall('close_voting',{},'Voting closed.');
 if(d.gbid)gcall('place_bid',{p_amt:GS.cur_bid+ +d.gbid},'Bid placed.');
 if('gbidc' in d)gcall('place_bid',{p_amt:+($('#gamt').value||0)},'Bid placed.')
 });
 $("#view").addEventListener("change",e=>{const d=e.target.dataset;
 if(e.target.id=='mw'){MW=+e.target.value;LCONF='';msg='';render()}if(e.target.id=='mt'){MT=+e.target.value;LCONF='';msg='';render()}
-if(d.mg){const a=d.mg.split('-');setME(a[0]+'-'+a[1],a[2]=='1'?'g1':'g2',e.target.value===''?0:+e.target.value);setTimeout(()=>{const f=document.activeElement,fk=f&&f.dataset&&f.dataset.mg;render();if(fk){const n=document.querySelector(`[data-mg="${fk}"]`);if(n){n.focus();n.select&&n.select()}}},0)}
-if(d.mpick){const a=d.mpick.split('-');setME(a[0]+'-'+a[1],'pick',+a[2]);render()}if(e.target.id=='tt'){TR.to=+e.target.value;TR.recv=[];render()}
+if(d.mg){const a=d.mg.split('-');setME(a[0]+'-'+a[1],a[2]=='1'?'g1':'g2',e.target.value===''?0:+e.target.value);autoSave(+a[0]);setTimeout(()=>{const f=document.activeElement,fk=f&&f.dataset&&f.dataset.mg;render();if(fk){const n=document.querySelector(`[data-mg="${fk}"]`);if(n){n.focus();n.select&&n.select()}}},0)}
+if(d.mpick){const a=d.mpick.split('-');setME(a[0]+'-'+a[1],'pick',+a[2]);autoSave(+a[0]);render()}if(e.target.id=='tt'){TR.to=+e.target.value;TR.recv=[];render()}
 if(e.target.id=='gr')GR=+e.target.value;if(e.target.id=='gs')GSS=+e.target.value;if(e.target.id=='gn')GSN=+e.target.value;if(e.target.id=='gm')GM=+e.target.value||GM;if(e.target.id=='gpool')GPOOL=e.target.value;
 if(d.ts!=null&&e.target.type=='checkbox'){TR.send=tog(TR.send,+d.ts);render()}
 if(d.tr!=null&&e.target.type=='checkbox'){TR.recv=tog(TR.recv,+d.tr);render()}
