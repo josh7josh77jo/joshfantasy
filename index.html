@@ -187,6 +187,7 @@ tr.cut td{border-bottom:2px dashed var(--red)}
 button.gp.gvb{display:grid;gap:3px;text-align:left;width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel);color:var(--mute);font-size:12px}button.gp.gvb.on{border-color:var(--blue);color:var(--fg);background:color-mix(in srgb,var(--blue) 10%,var(--panel))}button.gp.gvb:hover{border-color:var(--blue)}button.gp.gvb b{font:700 20px/1 var(--disp);color:inherit}
 .gp label{font-size:11.5px}
 .gvs .row{align-items:center}.gvs .lg{width:30px;height:30px}
+.srow{display:grid;grid-template-columns:1fr auto 56px;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}.srow b{font:700 18px var(--disp)}.srow small{font:600 12px var(--mono);color:var(--mute);text-align:right}
 </style>
 </head>
 <body>
@@ -264,7 +265,8 @@ const P=playoffs();if(!P)return -1;const ms=w==7?P.sf:P.fin?[P.fin]:[],g=ms.find
 const wRow=(w,t,pid)=>WP.find(r=>r.week==w&&r.team==t&&r.pid==pid);
 const isLocked=(w,t)=>WL.has(w+'-'+t);
 const editable=(w,t)=>t>=0&&t==myT()&&!isLocked(w,t)&&SET.week>0&&w<=Math.max(1,SET.week);
-function pv(w,t,pid){const e=t==myT()?ME[w+'-'+pid]:null,r=wRow(w,t,pid);if(e)return e;return r?{g1:+r.g1,g2:+r.g2,pick:+r.pick==2?2:1}:{g1:0,g2:0,pick:1}}
+function pv0(w,t,pid){const e=t==myT()?ME[w+'-'+pid]:null,r=wRow(w,t,pid);if(e)return e;return r?{g1:+r.g1,g2:+r.g2,pick:+r.pick==2?2:1}:{g1:0,g2:0,pick:1}}
+function pv(w,t,pid){const v={...pv0(w,t,pid)},p=dPl(pid),G=p?pGames(p,w):[];if(G.length){v.g1=G[0]?G[0].pts:0;v.g2=G[1]?G[1].pts:0;v.auto=true}return v}
 const chosen=v=>v.pick==2?v.g2:v.g1;
 function autoLineup(ids){const c={sk:0,g:0},out=[],rest=ids.map(dPl).filter(Boolean).sort((a,b)=>b.pts-a.pts),g1=rest.find(p=>p.g);if(g1){rest.splice(rest.indexOf(g1),1);rest.unshift(g1)}
 rest.forEach(p=>{const s2=c.sk+(p.g?0:1),g2=c.g+(p.g?1:0);if(canStart(s2,g2)){c.sk=s2;c.g=g2;out.push(p)}});return out}
@@ -275,14 +277,36 @@ function slots(list){const sk=list.filter(p=>!p.g),g=list.filter(p=>p.g),fx=[...
 return [...pad(sk.slice(0,3),3).map(p=>['SK',p]),...pad(fx,2).map(p=>['FLEX',p]),...pad(g.slice(0,1),1).map(p=>['G',p])]}
 const wTotal=(w,t)=>Math.round(starters(w,t).reduce((s,p)=>s+chosen(pv(w,t,p.id)),0)*100)/100;
 
-function gOpp(p,w){const ti=CODES.indexOf(p.pos);return ti<0||ti>=N?-1:oppOf(ti,w)}
+let BHL=null,BHLIDX={},BHLERR=false;
+async function loadBHL(){try{const r=await fetch(SUPA_URL+'/functions/v1/bhl-stats');const d=await r.json();if(!r.ok||!d.games)throw 0;
+const idx={};d.games.forEach(g=>g.teams.forEach((t,i)=>{const o=g.teams[1-i];const k=g.w+'|'+t.ab;(idx[k]=idx[k]||[]).push({g,t,o})}));
+const ch=!BHL||BHL.updated!==d.updated&&JSON.stringify(BHL.games)!==JSON.stringify(d.games);BHL=d;BHLIDX=idx;BHLERR=false;if(ch)soft()}catch(e){BHLERR=true}}
+const r2=x=>Math.round(x*100)/100;
+const bName=p=>p.name.replace(/ \(G\)$/,'').toLowerCase();
+function skPts(l){return r2(10*l.g+6*l.a+4*l.gf-4*l.ga+l.sog+0.1*l.tou)}
+function gPts(l,t,o){const main=t.goalies.reduce((m,x)=>x.toi>(m?m.toi:-1)?x:m,null),isMain=main&&main.u===l.u,win=t.gf>o.gf,so=isMain&&o.gf==0;
+return{pts:r2((isMain?(win?8:-6):0)+3*l.sv-8*l.ga+(so?10:0)),dec:isMain?(win?'Win':'Loss'):'No decision',so}}
+const _pgc={};
+function pGames(p,w){if(!BHL)return [];const ck=BHL.updated+'|'+w+'|'+p.id;if(_pgc[ck])return _pgc[ck];const nm=bName(p),key=p.g?'goalies':'players';
+let team=null;BHL.games.forEach(g=>{if(g.w!=w)return;g.teams.forEach(t=>{if(t[key].some(l=>l.u.toLowerCase()==nm))team=t.ab})});team=team||p.pos;
+const list=(BHLIDX[w+'|'+team]||[]).slice(0,2).map(({g,t,o})=>{const l=t[key].find(x=>x.u.toLowerCase()==nm)||null;let pts=0,extra={};
+if(l){if(p.g){extra=gPts(l,t,o);pts=extra.pts}else pts=skPts(l)}return{team:t.ab,opp:o.ab,date:g.d,tgf:t.gf,ogf:o.gf,line:l,pts,extra,goalie:p.g}});
+return _pgc[ck]=list}
+function gOpp(p,w){const G=pGames(p,w);if(G.length){const g=G[0],i=CODES.indexOf(g.opp);return i<0||i>=N?-1:i}const ti=CODES.indexOf(p.pos);return ti<0||ti>=N?-1:oppOf(ti,w)}
 let GST=null;
 function statMenu(){if(!GST)return '';const [w,t,pid,g]=GST,p=dPl(pid);if(!p){GST=null;return ''}
-const o=gOpp(p,w),ti=CODES.indexOf(p.pos),v=pv(w,t,pid),pts=g==1?v.g1:v.g2,st=(typeof GSTATS!='undefined'&&GSTATS[w+'-'+g+'-'+pid])||null;
-const rows=st?Object.entries(st).map(([k,x])=>`<div class='row'><span>${esc(k)}</span><b>${esc(x)}</b></div>`).join(''):`<div class='empty'>Detailed stats for this game aren’t loaded yet. They’ll show here once the league’s stats source is connected.</div>`;
-return `<div class='ov' data-gclose><div class='sheet' role='dialog' aria-modal='true' aria-labelledby='gsh'><button class='x' data-gclose aria-label='Close'>✕</button><p class='note' style='margin:0'>Week ${w} · Game ${g}${v.pick==g?' · counts for '+esc(tmn(t)):''}</p><h2 id='gsh' style='margin:0 0 10px'>${esc(p.name)}</h2>
-<div class='game gvs'><div class='row'><span>${ti>=0&&ti<N?lg(ti):''}${ti>=0&&ti<N?esc(tmn(ti)):esc(p.pos)}</span><small class='note'>vs</small><span>${o>=0?lg(o)+esc(tmn(o)):'No game'}</span></div></div>
-<div class='row' style='margin:12px 0'><span>Fantasy points</span><b>${(+pts||0).toFixed(2).replace(/\.?0+$/,'')||'0'}</b></div>${rows}</div></div>`}
+const G=pGames(p,w)[g-1],v=pv(w,t,pid),pts=g==1?v.g1:v.g2,ix=c=>{const i=CODES.indexOf(c);return i<0||i>=N?-1:i};
+const me=G?ix(G.team):(CODES.indexOf(p.pos)),o=G?ix(G.opp):gOpp(p,w),side=(i,c)=>i>=0?lg(i)+esc(tmn(i)):esc(c||'');
+const fx=x=>(+x||0).toFixed(2).replace(/\.?0+$/,'')||'0',mm=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+const R=(k,x,pp)=>`<div class='srow'><span>${k}</span><b>${x}</b><small>${pp==null?'':(pp>0?'+':'')+fx(pp)}</small></div>`;
+let rows;
+if(!G)rows=`<div class='empty'>${BHL?'No BHL game found for this player in Week '+w+' yet.':BHLERR?'Couldn’t reach the BHL stats right now. Try again in a minute.':'Loading BHL stats…'}</div>`;
+else if(!G.line)rows=`<div class='empty'>${esc(p.name)} didn’t play in this game, so it counts as 0.</div>`;
+else{const l=G.line;rows=G.goalie?R('Result',G.extra.dec,G.extra.dec=='Win'?8:G.extra.dec=='Loss'?-6:null)+R('Saves',l.sv,3*l.sv)+R('Shots against',l.sa)+R('Goals against',l.ga,-8*l.ga)+(G.extra.so?R('Shutout','Yes',10):'')+R('Time on ice',mm(l.toi))
+:R('Goals',l.g,10*l.g)+R('Assists',l.a,6*l.a)+R('Shots on goal',l.sog,l.sog)+R('Goals for (on ice)',l.gf,4*l.gf)+R('Goals against (on ice)',l.ga,-4*l.ga)+R('Touches',l.tou,r2(.1*l.tou))+R('Hits',l.hit)+R('Time on ice',mm(l.toi))}
+return `<div class='ov' data-gclose><div class='sheet' role='dialog' aria-modal='true' aria-labelledby='gsh'><button class='x' data-gclose aria-label='Close'>✕</button><p class='note' style='margin:0'>Week ${w} · Game ${g}${G&&G.date?' · '+esc(G.date):''}${v.pick==g?' · counts for '+esc(tmn(t)):''}</p><h2 id='gsh' style='margin:0 0 10px'>${esc(p.name)}</h2>
+<div class='game gvs'><div class='row'><span>${side(me,G?G.team:p.pos)}</span><b>${G?G.tgf:''}</b></div><div class='row'><span>${side(o,G&&G.opp)}</span><b>${G?G.ogf:''}</b></div></div>
+<div class='row' style='margin:12px 0 4px'><span>Fantasy points</span><b>${fx(pts)}</b></div>${rows}${BHL?`<p class='note'>From BHL ${esc(BHL.season.name)} box scores on blockey.net.</p>`:''}</div></div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const b=t.closest('[data-gstat]');
 if(b&&!(t.closest('label'))){const [w,tm,pid,g]=b.dataset.gstat.split('-').map(Number);GST=[w,tm,pid,g];render();const x=document.querySelector('.sheet .x');if(x)x.focus();return}
 if(t.dataset&&'gclose' in t.dataset){const k=GST&&GST.join('-');GST=null;render();const r=k&&document.querySelector(`[data-gstat="${k}"]`);if(r)r.focus()}});
@@ -290,8 +314,8 @@ document.addEventListener('keydown',e=>{if(e.key=='Escape'&&GST){const k=GST.joi
 function slotRow(w,t,[lab,p],ed){const tag=`<span class='slt ${lab}'>${lab}</span>`;
 if(!p)return `<div class='ms open'>${tag}<span class='n'>Open spot</span></div>`;
 const v=pv(w,t,p.id),k=w+'-'+p.id,f=x=>(+x).toFixed(2).replace(/\.?0+$/,'')||'0';
-const vsH=g=>{const o=gOpp(p,w);return `<span class='vsh'>${o>=0?`<img class='lg' src='${LOGOS[CODES[o]]}' alt=''>`:''}G${g}</span>`},gLab=g=>{const o=gOpp(p,w);return `Game ${g} stats for ${esc(p.name)}${o>=0?' against '+esc(tmn(o)):''}`};
-const cell=g=>ed?`<div class='gp ${v.pick==g?'on':''}'><div class='gh'><button class='gvb' data-gstat='${w}-${t}-${p.id}-${g}' aria-label='${gLab(g)}'>${vsH(g)}</button><label title='Count this game'><input type='radio' name='pk-${k}' data-mpick='${k}-${g}' ${v.pick==g?'checked':''} aria-label='Count game ${g} for ${esc(p.name)}'>Use</label></div><input type='number' step='0.01' data-mg='${k}-${g}' value='${g==1?v.g1:v.g2}' aria-label='${esc(p.name)} game ${g} points'></div>`
+const gOppG=g=>{const G=pGames(p,w);if(G[g-1]){const i=CODES.indexOf(G[g-1].opp);return i<0||i>=N?-1:i}return gOpp(p,w)};const vsH=g=>{const o=gOppG(g);return `<span class='vsh'>${o>=0?`<img class='lg' src='${LOGOS[CODES[o]]}' alt=''>`:''}G${g}</span>`},gLab=g=>{const o=gOppG(g);return `Game ${g} stats for ${esc(p.name)}${o>=0?' against '+esc(tmn(o)):''}`};
+const cell=g=>ed?`<div class='gp ${v.pick==g?'on':''}'><div class='gh'><button class='gvb' data-gstat='${w}-${t}-${p.id}-${g}' aria-label='${gLab(g)}'>${vsH(g)}</button><label title='Count this game'><input type='radio' name='pk-${k}' data-mpick='${k}-${g}' ${v.pick==g?'checked':''} aria-label='Count game ${g} for ${esc(p.name)}'>Use</label></div>${v.auto?`<b>${f(g==1?v.g1:v.g2)}</b>`:`<input type='number' step='0.01' data-mg='${k}-${g}' value='${g==1?v.g1:v.g2}' aria-label='${esc(p.name)} game ${g} points'>`}</div>`
 :`<button class='gp gvb ${v.pick==g?'on':''}' data-gstat='${w}-${t}-${p.id}-${g}' aria-label='${gLab(g)}'>${vsH(g)}<b>${f(g==1?v.g1:v.g2)}</b></button>`;
 return `<div class='ms'>${tag}<span class='n'>${esc(p.name)}<small>${esc(p.team)}</small></span>${cell(1)}${cell(2)}<span class='pts'>${f(chosen(v))}</span></div>`}
 function lineupCol(w,t){const ed=editable(w,t),lk=isLocked(w,t),list=starters(w,t),me=t==myT(),st=SAVST[w];
@@ -306,7 +330,7 @@ if(PERR)return head+`<div class='empty'>The weekly points database isn’t set u
 const w=MW||Math.min(8,Math.max(1,SET.week)),t=MT==-2?(myT()>=0?myT():0):MT,o=oppOf(t,w);
 const wsel=`<select id='mw' aria-label='Week'>${[1,2,3,4,5,6,7,8].map(x=>`<option value='${x}' ${x==w?'selected':''}>Week ${x}${x==7?' · Semifinal':x==8?' · Final':''}</option>`).join('')}</select>`;
 const tsel=`<select id='mt' aria-label='Team'>${TEAMS.slice(0,N).map((x,i)=>`<option value='${i}' ${i==t?'selected':''}>${esc(x.n)}${i==myT()?' (you)':''}</option>`).join('')}</select>`;
-const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Lineups come straight from each team’s roster. Only a team’s owner can change its points.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
+const info=`<p class='note'>${SET.week?'Current week: Week '+SET.week+'.':'The season hasn’t started yet, so points can’t be entered.'} Every player plays 2 games a week. For each starter (3 skaters, 2 flex, 1 goalie) the owner picks which game’s points count. The team total is the sum of the picked games. Lineups come straight from each team’s roster. Game points are calculated from BHL box scores on blockey.net. Click a game to see the player’s stats.${NOPICK?' <b>Run schema_v9.sql in Supabase so game picks are saved.</b>':''}</p>`;
 if(o<0)return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='empty'>${esc(tmn(t))} has no game in Week ${w}${w>=7?'. Playoff matchups are set from the standings.':'.'}</div>`;
 const a=wTotal(w,t),b=wTotal(w,o);
 return head+`<div class='tools'>${wsel}${tsel}</div>`+info+`<div class='game vs'><div class='row ${a>b?'lead':''}'><span>${lg(t)}${esc(tmn(t))}</span><b>${a.toFixed(1)}</b></div><div class='row ${b>a?'lead':''}'><span>${lg(o)}${esc(tmn(o))}</span><b>${b.toFixed(1)}</b></div></div><div class='mu'>${lineupCol(w,t)}${lineupCol(w,o)}</div>`}
@@ -583,7 +607,7 @@ if(d.tr!=null&&e.target.type=='checkbox'){TR.recv=tog(TR.recv,+d.tr);render()}
 if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value);if(e.target.id=='hd'){HIDE=e.target.checked;try{localStorage.setItem('blueline-hide',HIDE?'1':'0')}catch(x){}render()}});
 render();
 loadAll();setInterval(loadAll,20000);loadDraft();setInterval(loadDraft,3000);
-loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadPts();setInterval(loadPts,5000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},1500);
+loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadPts();setInterval(loadPts,5000);loadBHL();setInterval(loadBHL,300000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},1500);
 setInterval(()=>{if(location.hash!='#game'||!GS||GS.status!='bidding'||GS.paused)return;const left=(GS.ends_at-Date.now())/1000,el=$('#gt');if(el)el.textContent=left>0?Math.ceil(left)+'s':'Time!';
 if(left<=0&&Date.now()-GLAST>1500){GLAST=Date.now();sb.rpc('resolve_round').then(loadGame)}},250);
 </script>
