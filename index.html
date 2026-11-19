@@ -195,6 +195,7 @@ button.gp.gvb{display:grid;gap:3px;text-align:left;width:100%;box-sizing:border-
 .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-top:12px}
 .lopt{display:grid;justify-items:center;align-content:start;gap:3px;padding:10px 6px;border-radius:10px;background:var(--panel);text-align:center}.lopt b{font:700 12.5px/1.2 var(--body)}.lopt img{width:72px;height:72px;object-fit:contain}.lopt small{font:600 11px var(--mono);color:var(--mute)}
 .lopt:hover{border-color:var(--blue)}
+.usebox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}.usebox.on span{font-weight:700;color:var(--pos)}
 </style>
 </head>
 <body>
@@ -305,6 +306,12 @@ if(l){if(p.g){extra=gPts(l,t,o);pts=extra.pts}else pts=skPts(l)}return{team:t.ab
 return _pgc[ck]=list}
 function gOpp(p,w){const G=pGames(p,w);if(G.length){const g=G[0],i=CODES.indexOf(g.opp);return i}const ti=CODES.indexOf(p.pos);return ti<0||ti>=N?-1:oppOf(ti,w)}
 let GST=null;
+function useBox(w,t,pid,g,v){if(t!=myT()||t<0)return '';
+if(v.pick==g)return `<div class='usebox on'><span>✓ This game counts for ${esc(tmn(t))}</span></div>`;
+const why=isLocked(w,t)?'Week '+w+' is locked.':!SET.week?'You can pick once the season starts.':w>Math.max(1,SET.week)?'You can pick once Week '+w+' starts.':'';
+return `<div class='usebox'><button data-gusepick='${w}-${pid}-${g}' ${why?'disabled':''}>Use this game for points</button>${why?`<small class='note'>${why}</small>`:''}</div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gusepick]');if(!b||b.disabled)return;const [w,pid,g]=b.dataset.gusepick.split('-').map(Number);
+if(!editable(w,myT()))return;setME(w+'-'+pid,'pick',g);autoSave(w);msg='Game '+g+' now counts for '+(dPl(pid)?dPl(pid).name:'that player')+'.';render();const x=document.querySelector('.sheet .x');if(x)x.focus()});
 function statMenu(){if(!GST)return '';const [w,t,pid,g]=GST,p=dPl(pid);if(!p){GST=null;return ''}
 const G=pGames(p,w)[g-1],v=pv(w,t,pid),pts=g==1?v.g1:v.g2,ix=c=>CODES.indexOf(c);
 const me=G?ix(G.team):(CODES.indexOf(p.pos)),o=G?ix(G.opp):gOpp(p,w),side=(i,c)=>i>=0?lgB(i)+esc(NAME0[i]||c||''):esc(c||'');
@@ -317,7 +324,7 @@ else{const l=G.line;rows=G.goalie?R('Result',G.extra.dec,G.extra.dec=='Win'?8:G.
 :R('Goals',l.g,10*l.g)+R('Assists',l.a,6*l.a)+R('Shots on goal',l.sog,l.sog)+R('Goals for (on ice)',l.gf,4*l.gf)+R('Goals against (on ice)',l.ga,-4*l.ga)+R('Touches',l.tou,r2(.1*l.tou))+R('Hits',l.hit)+R('Time on ice',mm(l.toi))}
 return `<div class='ov' data-gclose><div class='sheet' role='dialog' aria-modal='true' aria-labelledby='gsh'><button class='x' data-gclose aria-label='Close'>✕</button><p class='note' style='margin:0'>Week ${w} · Game ${g}${G&&G.date?' · '+esc(G.date):''}${v.pick==g?' · counts for '+esc(tmn(t)):''}</p><h2 id='gsh' style='margin:0 0 10px'>${esc(p.name)}</h2>
 <div class='game gvs'><div class='row'><span>${side(me,G?G.team:p.pos)}</span><b>${G?G.tgf:''}</b></div><div class='row'><span>${side(o,G&&G.opp)}</span><b>${G?G.ogf:''}</b></div></div>
-<div class='row' style='margin:12px 0 4px'><span>Fantasy points</span><b>${fx(pts)}</b></div>${rows}${BHL?`<p class='note'>From BHL ${esc(BHL.season.name)} box scores on blockey.net.</p>`:''}</div></div>`}
+<div class='row' style='margin:12px 0 4px'><span>Fantasy points</span><b>${fx(pts)}</b></div>${useBox(w,t,pid,g,v)}${rows}${BHL?`<p class='note'>From BHL ${esc(BHL.season.name)} box scores on blockey.net.</p>`:''}</div></div>`}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;const b=t.closest('[data-gstat]');
 if(b&&!(t.closest('label'))){const [w,tm,pid,g]=b.dataset.gstat.split('-').map(Number);GST=[w,tm,pid,g];render();const x=document.querySelector('.sheet .x');if(x)x.focus();return}
 if(t.dataset&&'gclose' in t.dataset){const k=GST&&GST.join('-');GST=null;render();const r=k&&document.querySelector(`[data-gstat="${k}"]`);if(r)r.focus()}});
