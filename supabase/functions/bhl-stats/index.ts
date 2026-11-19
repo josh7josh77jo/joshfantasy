@@ -1,4 +1,3 @@
-import { Image } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
 // Relay for public BHL box scores from blockey.net.
 // blockey.net does not allow other sites to read its API from the browser,
 // so the league site asks this function instead. Read-only, public data.
@@ -12,7 +11,6 @@ let cache: { at: number; key: string; body: string } | null = null;
 
 type Team = { id: string; name: string; abbr: string; season: string; seasonName: string; order: number; logo: string };
 let teamCache: { at: number; teams: Team[]; list: Omit<Team, "logo">[] } | null = null;
-const thumbs = new Map<string, Uint8Array>();
 
 // All BHL teams from every season, newest season first, with their logos.
 async function loadTeams() {
@@ -58,26 +56,61 @@ async function logoResponse(abbr: string): Promise<Response> {
   return new Response(d.bytes, { headers: imgHeaders(d.type) });
 }
 
-// ?team=<id>&size=96 -> any season's logo, optionally shrunk
-async function teamLogoResponse(id: string, size: number): Promise<Response> {
+// ?team=<id> -> any season's logo (full size)
+async function teamLogoResponse(id: string): Promise<Response> {
   const t = (await loadTeams()).teams.find((x) => x.id === id);
   if (!t) return new Response("Not found", { status: 404, headers: cors });
   const d = decode(t.logo);
-  if (!size) return new Response(d.bytes, { headers: imgHeaders(d.type) });
-  const key = id + "@" + size;
-  let out = thumbs.get(key);
-  if (!out) {
-    try {
-      const img = await Image.decode(d.bytes);
-      const k = Math.min(size / img.width, size / img.height, 1);
-      img.resize(Math.max(1, Math.round(img.width * k)), Math.max(1, Math.round(img.height * k)));
-      out = await img.encode(1);
-      thumbs.set(key, out);
-    } catch {
-      return new Response(d.bytes, { headers: imgHeaders(d.type) });
+  return new Response(d.bytes, { headers: imgHeaders(d.type) });
+}
+
+// Saves every distinct BHL logo into the public "bhl-logos" storage folder,
+// plus list.json, so the site can load them quickly from the CDN.
+const BUCKET = "bhl-logos";
+async function buildLogos(): Promise<Response> {
+  const base = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const pub = `${base}/storage/v1/object/public/${BUCKET}/list.json`;
+  try {
+    const old = await fetch(pub + "?t=" + Date.now());
+    if (old.ok) {
+      const j = await old.json();
+      if (Date.now() - Date.parse(j.builtAt) < 10 * 60_000) return new Response(JSON.stringify(j), { headers: { ...cors, "Content-Type": "application/json" } });
     }
+  } catch { /* rebuild */ }
+  const auth = { Authorization: `Bearer ${key}`, apikey: key };
+  await fetch(`${base}/storage/v1/bucket`, {
+    method: "POST", headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
+  }).catch(() => null);
+  const put = async (path: string, body: Uint8Array | string, type: string) => {
+    const r = await fetch(`${base}/storage/v1/object/${BUCKET}/${path}`, {
+      method: "POST", headers: { ...auth, "Content-Type": type, "x-upsert": "true", "cache-control": "3600" }, body,
+    });
+    if (!r.ok) throw new Error(`upload ${path}: ${r.status} ${await r.text()}`);
+  };
+  const { teams, list } = await loadTeams();
+  const ext = (type: string) => (type.split("/")[1] || "png").replace("jpeg", "jpg").replace("svg+xml", "svg");
+  const safe = (id: string) => id.replace(/[^A-Za-z0-9_-]/g, "_");
+  const out: Any[] = [];
+  for (const item of list) {
+    const t = teams.find((x) => x.id === item.id)!;
+    const d = decode(t.logo);
+    const file = `t/${safe(t.id)}.${ext(d.type)}`;
+    await put(file, d.bytes, d.type);
+    out.push({ id: t.id, name: t.name, abbr: t.abbr, seasonName: t.seasonName, file });
   }
-  return new Response(out, { headers: imgHeaders("image/png") });
+  const current: Record<string, string> = {};
+  const firstOrder = teams.length ? teams[0].order : 0;
+  for (const t of teams) {
+    if (t.order !== firstOrder || !t.abbr || current[t.abbr]) continue;
+    const d = decode(t.logo);
+    const file = `cur/${t.abbr}.${ext(d.type)}`;
+    await put(file, d.bytes, d.type);
+    current[t.abbr] = file;
+  }
+  const json = JSON.stringify({ builtAt: new Date().toISOString(), logos: out, current });
+  await put("list.json", json, "application/json");
+  return new Response(json, { headers: { ...cors, "Content-Type": "application/json" } });
 }
 
 // deno-lint-ignore no-explicit-any
@@ -97,7 +130,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ logos: list }), { headers: { ...headers, "Cache-Control": "public, max-age=3600" } });
     }
     const team = params.get("team");
-    if (team) return await teamLogoResponse(team, Math.min(320, Math.max(0, parseInt(params.get("size") || "0") || 0)));
+    if (team) return await teamLogoResponse(team);
+    if (params.get("build") === "1") return await buildLogos();
     if (cache && cache.key === want && Date.now() - cache.at < 120_000) {
       return new Response(cache.body, { headers });
     }
