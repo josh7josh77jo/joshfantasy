@@ -442,7 +442,7 @@ const canPick=()=>DSTART&&!DERR&&DR.length<N*ROUNDS&&!!SES&&(myT()==slot(DR.leng
 const slot=i=>{const r=Math.floor(i/N),k=i%N;return ORD[r%2?N-1-k:k]};
 function draft(){const total=N*ROUNDS,cur=DR.length,done=cur>=total,taken=new Set(DR.map(d=>d.pid));
 const avail=DPLAYERS.filter(p=>(!HIDE||!taken.has(p.id))&&(dpf=="All"||(dpf=="Goalies"?p.g:p.pos==dpf))&&p.name.toLowerCase().includes(dq.toLowerCase())).sort((a,b)=>(taken.has(a.id)-taken.has(b.id))||b.pts-a.pts);
-const banner=DERR?`<div class="clock"><b>Draft database not set up</b>Run schema_v2.sql in Supabase, then reload.</div>`:!DSTART?`<div class="clock"><b>The draft hasn’t started</b>${ADM?'Press Start draft when everyone is ready.':'The commissioner will start it when everyone is ready.'}</div>`:done?`<div class="clock done"><b>Draft complete</b>All ${total} picks are in.</div>`:`<div class="clock" role="status"><b>${esc(TEAMS[slot(cur)].n)} is on the clock</b>Round ${Math.floor(cur/N)+1} of ${ROUNDS} · pick ${cur%N+1} · overall ${cur+1} of ${total}${SET.timer?' · <span id="clk"></span>':''}</div>`;
+const banner=DERR?`<div class="clock"><b>Draft database not set up</b>Run schema_v2.sql in Supabase, then reload.</div>`:!DSTART?`<div class="clock"><b>The draft hasn’t started</b>${ADM?'Press Start draft when everyone is ready.':'The commissioner will start it when everyone is ready.'}</div>`:done?`<div class="clock done"><b>Draft complete</b>All ${total} picks are in.</div>`:`<div class="clock" role="status"><b>${esc(TEAMS[slot(cur)].n)} is on the clock</b>Round ${Math.floor(cur/N)+1} of ${ROUNDS} · pick ${cur%N+1} · overall ${cur+1} of ${total}${SET.timer&&DEAD?' · <span id="clk">'+fmt(Math.max(0,(DEAD-SNOW())/1000))+' left</span>':''}</div>`;
 const list=avail.length?avail.map(p=>taken.has(p.id)?pRow(p,`<span class="note">Drafted by ${esc(TEAMS[slot(DR.findIndex(d=>d.pid==p.id))].n)}</span>`).replace('class="p"','class="p drafted"'):pRow(p,`<button data-pick="${p.id}" ${canPick()?'':'disabled'} aria-label="Draft ${esc(p.name)}">Draft</button>`)).join(""):`<div class="empty">No players left that match. Clear the search or pick another position.</div>`;
 let cells="";for(let r=0;r<ROUNDS;r++)for(let t=0;t<N;t++){let i=-1;for(let j=r*N;j<r*N+N;j++)if(slot(j)==t)i=j;const d=DR[i],p=d&&DPLAYERS.find(x=>x.id==d.pid);
 cells+=`<div class="cell ${i==cur?'now':''} ${t==myT()&&p?'mine':''}">${p?`${esc(p.name)}<small>${p.pos} · ${esc(p.team)}</small>`:`<span class="no">${i==cur?'On the clock':'Pick '+(i+1)}</span>`}</div>`}
@@ -517,9 +517,9 @@ SET={teams:c(d.teams,2,12,12),rounds:c(d.rounds,1,12,8),roster:c(d.roster,10,16,
 SET.rounds=Math.min(SET.rounds,Math.max(1,Math.floor(DPLAYERS.length/SET.teams)));
 N=SET.teams;ROUNDS=SET.rounds;MAX=SET.roster;ORD=[...Array(N).keys()].reverse()}
 const fmt=s=>{s=Math.max(0,Math.ceil(s));const d=Math.floor(s/86400),hr=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+'d ':'')+(hr||d?hr+'h ':'')+(m||hr||d?m+'m ':'')+(s%60)+'s'};
-setInterval(()=>{if(location.hash!='#draft'||!DSTART||!SET.timer||!DEAD||DR.length>=N*ROUNDS)return;const left=(DEAD-Date.now())/1000;
+setInterval(()=>{if(!DSTART||!SET.timer||!DEAD||DR.length>=N*ROUNDS)return;const left=(DEAD-SNOW())/1000;
 if(left<=0){if(SES&&APF!==DR.length){APF=DR.length;const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b)sendPick(b.id,true)}return}
-const k=$('#clk');if(k)k.textContent=fmt(left)+' left'},1000);
+const k=$('#clk');if(k){k.textContent=fmt(left)+' left';k.classList.toggle('cold',left<=10)}},250);
 function settings(){if(!ADM)return `<h2>Settings</h2><div class='empty'>Only the commissioner can change league settings.</div>`;
 const rng=(a,b)=>Array.from({length:b-a+1},(_,i)=>[a+i,a+i]);
 const sel=(k,o,cur)=>`<select data-set='${k}'>${o.map(([v,l])=>`<option value='${v}' ${v==cur?'selected':''}>${l}</option>`).join('')}</select>`;
@@ -612,9 +612,9 @@ const r=await sb.from('team_names').upsert({idx:t,name:v});msg=r.error?'Could no
 $("#view").addEventListener("click",async e=>{const d=e.target.dataset;
 if(d.pick)sendPick(+d.pick,false);
 if("auto" in d){const t=new Set(DR.map(x=>x.pid)),b=DPLAYERS.filter(p=>!t.has(p.id)).sort((x,y)=>y.pts-x.pts)[0];if(b)sendPick(b.id,false)}
-if("dstart" in d&&ADM){const r=await sb.from('draft_state').update({started:true,picks:[],deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Draft started.':'Could not start the draft. Only admins can.';await loadDraft();render()}
-if("undo" in d&&ADM&&DR.length){const r=await sb.from('draft_state').update({picks:DR.slice(0,-1).map(x=>x.pid),deadline:SET.timer?Date.now()+SET.timer*1000:null}).eq('id',1).select();msg=dbok(r)?'Last pick undone.':'Could not undo.';await loadDraft();render()}
-if("reset" in d&&ADM){if(rc){const r=await sb.from('draft_state').update({started:false,picks:[],deadline:null}).eq('id',1).select();RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=dbok(r)?'Draft reset.':'Could not reset.';await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
+if("dstart" in d&&ADM){const r=await sb.rpc('draft_start');msg=!r.error?'Draft started.':'Could not start the draft: '+r.error.message;await loadDraft();render()}
+if("undo" in d&&ADM&&DR.length){const r=await sb.rpc('draft_undo');msg=!r.error?'Last pick undone.':'Could not undo: '+r.error.message;await loadDraft();render()}
+if("reset" in d&&ADM){if(rc){const r=await sb.rpc('draft_reset');RS={added:[],cut:[],st:{}};saveRS();rc=false;msg=!r.error?'Draft reset.':'Could not reset: '+r.error.message;await loadDraft()}else{rc=true;msg='Press again to clear all picks.'}render()}
 });
 addEventListener("hashchange",()=>{msg="";amsg="";SWAP=null;GST=null;LPICK=false;render()});
 $("#view").addEventListener("click",e=>{const d=e.target.dataset;if('logout' in d){sb.auth.signOut().then(()=>{SES=null;ADM=false;amsg='Logged out.';render()})}if('login' in d)doLogin();if('register' in d)doReg();if(d.kick)kick(d.kick);if(d.restore)restore(d.restore);if(d.start)setSt(d.start,'S');if(d.bench)setSt(d.bench,'B');if(d.cut)cutP(d.cut);if(d.fa)addFA(d.fa);if('savename' in d)saveName();if(d.wk)saveSet('league_week',Math.min(8,Math.max(0,SET.week+ +d.wk)));
@@ -647,7 +647,7 @@ if(d.ts!=null&&e.target.type=='checkbox'){TR.send=tog(TR.send,+d.ts);render()}
 if(d.tr!=null&&e.target.type=='checkbox'){TR.recv=tog(TR.recv,+d.tr);render()}
 if(d.assign)assign(d.assign,e.target.value);if(d.set)saveSet(d.set,e.target.value);if(e.target.id=='hd'){HIDE=e.target.checked;try{localStorage.setItem('blueline-hide',HIDE?'1':'0')}catch(x){}render()}});
 render();
-loadAll();setInterval(loadAll,20000);loadLogos();setInterval(loadLogos,30000);loadLogoList();loadDraft();setInterval(loadDraft,3000);
+loadAll();setInterval(loadAll,20000);loadLogos();setInterval(loadLogos,30000);loadLogoList();loadDraft();let LDT=0;setInterval(()=>{if(location.hash=='#draft'||Date.now()-LDT>4000){LDT=Date.now();loadDraft()}},1000);
 loadTrades();setInterval(loadTrades,4000);loadScores();setInterval(loadScores,5000);loadPts();setInterval(loadPts,5000);loadBHL();setInterval(loadBHL,300000);loadGame();setInterval(()=>{if(location.hash=='#game')loadGame()},800);
 let GPHASE='';
 setInterval(()=>{if(location.hash!='#game'||!GS||GS.status!='bidding'||GS.paused)return;const now=SNOW(),gap=GS.gap_until&&now<GS.gap_until,left=(GS.ends_at-now)/1000,ph=gap?'gap':left>0?'open':'closed';
