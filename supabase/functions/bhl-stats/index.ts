@@ -10,6 +10,11 @@ const cors = {
 let cache: { at: number; key: string; body: string } | null = null;
 
 const HIDE = new Set(["chicago dawgs", "halifax highlanders"]);
+// Correct logos for teams whose blockey.net logo is wrong (hosted with the league site).
+const CUSTOM = [
+  { id: "custom-chi", name: "Chicago Dawgs", abbr: "CHI", url: "https://josh7josh77jo.github.io/joshfantasy/logos/chicago-dawgs.png" },
+  { id: "custom-hfx", name: "Halifax Highlanders", abbr: "HFX", url: "https://josh7josh77jo.github.io/joshfantasy/logos/halifax-highlanders.png" },
+];
 type Team = { id: string; name: string; abbr: string; season: string; seasonName: string; order: number; logo: string };
 let teamCache: { at: number; teams: Team[]; list: Omit<Team, "logo">[] } | null = null;
 
@@ -103,6 +108,7 @@ async function buildLogos(force = false): Promise<Response> {
     await put(file, d.bytes, d.type);
     out.push({ id: t.id, name: t.name, abbr: t.abbr, seasonName: t.seasonName, file });
   }
+  for (const c of CUSTOM) out.push({ id: c.id, name: c.name, abbr: c.abbr, seasonName: "", url: c.url });
   const current: Record<string, string> = {};
   const firstOrder = teams.length ? teams[0].order : 0;
   for (const t of teams) {

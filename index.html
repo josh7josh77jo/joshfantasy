@@ -458,9 +458,9 @@ async function openPicker(){LPICK=true;render();if(!LLIST||LLIST==='err'){LLIST=
 function pickerMenu(){if(!LPICK||myT()<0)return '';let body;
 if(LLIST==null)body=`<div class='empty'>Loading every BHL logo…</div>`;
 else if(LLIST==='err')body=`<div class='empty'>Couldn’t load the BHL logos. Close this and try again.</div>`;
-else{const L=LLIST.slice().sort((a,b)=>a.name.localeCompare(b.name));body=`<div class='lgrid'>${L.map(x=>`<button class='lopt' data-lteam='${esc(x.id)}' ${LBUSY?'disabled':''} aria-label='${esc(x.name)} logo'><img src='${STORE+x.file}' loading='lazy' alt=''><b>${esc(x.name)}</b></button>`).join('')}</div>`}
+else{const L=LLIST.slice().sort((a,b)=>a.name.localeCompare(b.name));body=`<div class='lgrid'>${L.map(x=>`<button class='lopt' data-lteam='${esc(x.id)}' ${LBUSY?'disabled':''} aria-label='${esc(x.name)} logo'><img src='${x.url||STORE+x.file}' loading='lazy' alt=''><b>${esc(x.name)}</b></button>`).join('')}</div>`}
 return `<div class='ov' data-lclose><div class='sheet wide' role='dialog' aria-modal='true' aria-labelledby='lph'><button class='x' data-lclose aria-label='Close'>✕</button><h2 id='lph' style='margin:0 0 4px'>Choose a BHL logo</h2><p class='note'>Every BHL team’s logo, past and present.${LBUSY?' <b>Saving…</b>':''}</p>${body}</div></div>`}
-async function pickLogo(id){const x=(LLIST||[]).find(y=>y.id==id);if(!x)return;LBUSY=id;render();try{const b=await fetch(STORE+x.file).then(r=>{if(!r.ok)throw 0;return r.blob()});LPICK=false;LBUSY='';await setLogo(b)}catch(e){LBUSY='';msg='Couldn’t load that logo. Try another.';LPICK=false;render()}}
+async function pickLogo(id){const x=(LLIST||[]).find(y=>y.id==id);if(!x)return;LBUSY=id;render();try{const b=await fetch(x.url||STORE+x.file).then(r=>{if(!r.ok)throw 0;return r.blob()});LPICK=false;LBUSY='';await setLogo(b)}catch(e){LBUSY='';msg='Couldn’t load that logo. Try another.';LPICK=false;render()}}
 document.addEventListener('click',e=>{const t=e.target;if(!t.closest)return;if(t.closest('[data-lpick]')){openPicker();return}
 const o=t.closest('[data-lteam]');if(o&&!o.disabled){pickLogo(o.dataset.lteam);return}
 if(t.dataset&&'lclose' in t.dataset){LPICK=false;render();const b=document.querySelector('[data-lpick]');if(b)b.focus()}});
