@@ -18,3 +18,5 @@ language sql stable as $$ select (extract(epoch from clock_timestamp()) * 1000):
 -- 2026-11-19 (migration "schema_v19_game_slots"): each team has one Winger, Center, Defender and Goalie slot
 -- (set_game_pos moves the old occupant to unassigned). total_rounds now means "players to sell":
 -- skipped or unsold players don't count, the next player in the shuffled pool comes up instead.
+
+-- 2026-11-19 (migration "schema_v21_self_vote"): cast_vote no longer blocks voting for your own team.
