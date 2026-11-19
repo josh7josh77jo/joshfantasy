@@ -301,6 +301,7 @@ async function finishWeeks(bhl: number, playoffsStarted: boolean): Promise<numbe
   const { games } = await loadStats();
   const finished: number[] = [];
   for (const w of todo) {
+    if (!games.some((g) => g.w == w)) continue; // no BHL games for this week yet: nothing to score
     const rows = (await rest("scores?select=*")) || [];
     const lineups: Any[] = await rest("rpc/week_lineups", { method: "POST", body: JSON.stringify({ p_week: w }) });
     const totals: Record<number, number> = {};
